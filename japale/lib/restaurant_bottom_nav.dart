@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 /// Barre de navigation en bas d'écran, spécifique au profil Restaurant.
 /// À ajouter sur : Tableau de bord, Gestion de menu, Commandes, Profil restaurant.
 /// À NE PAS ajouter sur : Inscription restaurant, Connexion, Ajouter un plat

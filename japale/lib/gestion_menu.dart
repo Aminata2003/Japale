@@ -154,7 +154,7 @@ class _GestionMenuState extends State<GestionMenu> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _categories.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final categorie = _categories[index];
                     final active = categorie == _categorieActive;

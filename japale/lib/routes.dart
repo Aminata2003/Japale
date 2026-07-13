@@ -4,7 +4,6 @@ import 'package:japale/choix_profil.dart'; // adapte le nom du fichier si besoin
 import 'package:japale/widgets/connexion.dart';
 import 'package:japale/inscription_etudiant.dart';
 import 'package:japale/inscription_livreur.dart';
-import 'package:japale/choix_profil.dart';
 import 'package:japale/welcomPage.dart';
 // à décommenter une fois créé
 import 'package:japale/acceuil_client.dart';
