@@ -9,7 +9,7 @@ import 'package:japale/acceuil_client.dart';
 //import 'package:japale/dashboard.dart';
 // import 'package:japale/table_de_bord_restaurant.dart';
 // import 'package:japale/menu_restaurant.dart';
-// import 'package:japale/mon_panier.dart';
+ //import 'package:japale/panier_page.dart';
 // import 'package:japale/suivi_commande.dart';
 // import 'package:japale/profil_etudiant.dart';
 // import 'package:japale/profil_livreur.dart';
@@ -30,7 +30,7 @@ class AppRoutes {
   static const String dashboardLivreur = '/dashboard-livreur';
   static const String tableDeBordRestaurant = '/table-de-bord-restaurant';
   static const String menuRestaurant = '/menu-restaurant';
-  static const String monPanier = '/mon-panier';
+  ///static const String PanierPage= '/panier_page';
   static const String suiviCommande = '/suivi-commande';
   static const String profilEtudiant = '/profil-etudiant';
   static const String profilLivreur = '/profil-livreur';
@@ -48,7 +48,7 @@ class AppRoutes {
       //dashboardLivreur: (context) => const Dashbord(),
       // tableDeBordRestaurant: (context) => const TableDeBordRestaurant(),
       // menuRestaurant: (context) => const MenuRestaurant(),
-      // monPanier: (context) => const MonPanier(),
+      //static const String PanierPage= '/panier_page';
       // suiviCommande: (context) => const SuiviCommande(),
       // profilEtudiant: (context) => const ProfilEtudiant(),
       // profilLivreur: (context) => const ProfilLivreur(),
