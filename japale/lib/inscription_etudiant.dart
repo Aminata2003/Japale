@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
 
 /// Page "Créer un compte Étudiant"
 /// À placer dans lib/inscription_etudiant.dart
@@ -41,12 +42,8 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
 
   String? _citeSelectionnee;
   final List<String> _cites = [
-    'Cité A',
-    'Cité B',
-    'Cité C',
-    'Cité D',
-    'Cité E',
-    'Cité F',
+    for (int i = 0; i < 17; i++)
+      'Village ${String.fromCharCode(65 + i)}', // Village A à Village Q
     'Hors campus',
   ];
 
@@ -128,7 +125,7 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     if (_citeSelectionnee == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Merci de sélectionner votre résidence'),
+          content: Text('Merci de sélectionner votre village'),
         ),
       );
       return;
@@ -147,6 +144,12 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Compte créé avec succès !')),
+    );
+
+    // Redirige vers la page de connexion après inscription
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const ConnexionPage()),
     );
   }
 
@@ -426,12 +429,12 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Résidence sur le campus',
+        const Text('Village de résidence',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: _citeSelectionnee,
-          decoration: _inputDecoration('Sélectionnez votre cité'),
+          decoration: _inputDecoration('Sélectionnez votre village'),
           items: _cites
               .map((cite) => DropdownMenuItem(value: cite, child: Text(cite)))
               .toList(),
