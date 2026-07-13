@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:japale/acceuil_client.dart';
 import 'package:japale/welcomPage.dart';
-import 'package:japale/inscription_etudiant.dart';
 
 void main() {
   runApp(const MyApp());
