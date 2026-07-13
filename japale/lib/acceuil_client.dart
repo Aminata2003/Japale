@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/restaurant.dart';
+import 'panier_page.dart';
 
 class AccueilClient extends StatefulWidget {
   const AccueilClient({super.key});
@@ -332,9 +333,22 @@ Widget _buildRestaurantCard(Restaurant restaurant) {
                   width: double.infinity,
                   height: 32,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: navigation vers la page du restaurant
-                    },
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PanierPage(
+                              restaurantName: restaurant.name,
+                              fraisLivraison: restaurant.price,
+                              items: [
+                                CartItem(name: 'Thiébou Dieune', unitPrice: 1500),
+                                CartItem(name: 'Jus de Bissap (50cl)', unitPrice: 300),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+  
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6B35),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
