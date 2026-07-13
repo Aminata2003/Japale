@@ -161,7 +161,7 @@ class ChoixProfilPage extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
+            ),   
           ],
         ),
       ),
