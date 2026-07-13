@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'inscription_etudiant.dart';
+// import 'inscription_livreur.dart'; // décommente et adapte le nom de la classe
 
 class ChoixProfilPage extends StatelessWidget {
   const ChoixProfilPage({super.key});
@@ -92,8 +94,15 @@ class ChoixProfilPage extends StatelessWidget {
                       subtitle: 'Commandez vos repas',
                       icon: Icons.person,
                       color: const Color(0xFFF7D0BF),
-                      accentColor:const Color(0xFFFF6B35),
-                      onTap: () {},
+                      accentColor: const Color(0xFFFF6B35),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const InscriptionEtudiant(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     _OptionCard(
@@ -101,8 +110,17 @@ class ChoixProfilPage extends StatelessWidget {
                       subtitle: "Gagnez de l'argent en livrant",
                       icon: Icons.delivery_dining,
                       color: const Color(0xFFFCE0D4),
-                      accentColor:const Color(0xFFFF6B35),
-                      onTap: () {},
+                      accentColor: const Color(0xFFFF6B35),
+                      onTap: () {
+                        // Décommente une fois l'import de inscription_livreur.dart activé
+                        // et adapte le nom de la classe si besoin :
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (context) => const InscriptionLivreur(),
+                        //   ),
+                        // );
+                      },
                     ),
                     const SizedBox(height: 16),
                     _OptionCard(
@@ -111,7 +129,10 @@ class ChoixProfilPage extends StatelessWidget {
                       icon: Icons.storefront,
                       color: const Color(0xFFFAE6D9),
                       accentColor: const Color(0xFFFF6B35),
-                      onTap: () {},
+                      onTap: () {
+                        // TODO: brancher la page d'inscription restaurant
+                        // quand elle sera créée
+                      },
                     ),
                   ],
                 ),
@@ -206,7 +227,7 @@ class _OptionCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color:Color(0xFFFF6B35),
+                        color: Color(0xFFFF6B35),
                       ),
                     ),
                     const SizedBox(height: 4),
