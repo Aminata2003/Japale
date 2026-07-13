@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const ConnexionPage(), // Page d'accueil de l'application
+      home: const WelcomePage(), // Page d'accueil de l'application
     );
   }
 }
