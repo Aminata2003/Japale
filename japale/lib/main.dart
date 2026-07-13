@@ -6,7 +6,7 @@ import 'package:japale/inscription_restaurant.dart';
 import 'package:japale/widgets/connexion.dart';
 import 'package:japale/profil_restaurant.dart';
 import 'package:japale/acceuil_client.dart';
-import 'package:japale/plat.dart';
+import 'package:japale/models/plat.dart';
 import 'package:japale/publication_menu.dart';
 import 'package:japale/panier_page.dart';
 
