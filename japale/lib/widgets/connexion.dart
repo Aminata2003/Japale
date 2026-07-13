@@ -4,6 +4,7 @@ import 'package:japale/inscription_livreur.dart';
 import 'package:japale/acceuil_client.dart'; // adapte le nom du fichier/classe si besoin
 import 'package:japale/widgets/japale_logo.dart';
 
+
 class ConnexionPage extends StatefulWidget {
   const ConnexionPage({super.key});
 
