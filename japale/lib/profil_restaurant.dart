@@ -176,7 +176,7 @@ class ProfilRestaurant extends StatelessWidget {
             onTap: () {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => const ConnexionPage()),
+                MaterialPageRoute(builder: (context) => const ConnexionPage(profil: '',)),
                 (route) => false,
               );
             },

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
+import 'package:flutter/gestures.dart';
 
 /// Page "Créer un compte Étudiant"
 /// À placer dans lib/inscription_etudiant.dart
@@ -149,7 +150,8 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     // Redirige vers la page de connexion après inscription
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const ConnexionPage()),
+      MaterialPageRoute(
+          builder: (context) => ConnexionPage(profil: _photoProfil?.path ?? '')),
     );
   }
 
@@ -479,42 +481,66 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     );
   }
 
-  Widget _buildBoutonInscription() {
-    return ElevatedButton(
+ Widget _buildBoutonInscription() {
+  return SizedBox(
+    width: double.infinity,
+    height: 55,
+    child: ElevatedButton(
       onPressed: _sInscrire,
       style: ElevatedButton.styleFrom(
         backgroundColor: kOrange,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30),
         ),
-        elevation: 0,
       ),
       child: const Text(
         "S'inscrire",
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-
-  Widget _buildLienConnexion() {
-    return Center(
-      child: RichText(
-        text: const TextSpan(
-          style: TextStyle(color: Colors.black87, fontSize: 14),
-          children: [
-            TextSpan(text: 'Déjà un compte ? '),
-            TextSpan(
-              text: 'Se connecter',
-              style: TextStyle(color: kOrange, fontWeight: FontWeight.w600),
-            ),
-          ],
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
+  Widget _buildLienConnexion() {
+  return Center(
+    child: RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 14,
+        ),
+        children: [
+          const TextSpan(
+            text: "Déjà un compte ? ",
+          ),
+          TextSpan(
+            text: "Se connecter",
+            style: const TextStyle(
+              color: kOrange,
+              fontWeight: FontWeight.bold,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ConnexionPage(
+                      profil: "etudiant",
+                    ),
+                  ),
+                );
+              },
+          ),
+        ],
+      ),
+    ),
+  );
+}
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,

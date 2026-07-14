@@ -6,7 +6,7 @@ import 'package:japale/widgets/japale_logo.dart';
 
 
 class ConnexionPage extends StatefulWidget {
-  const ConnexionPage({super.key});
+  const ConnexionPage({super.key, required String profil});
 
   @override
   State<ConnexionPage> createState() => _ConnexionPageState();

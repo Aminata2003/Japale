@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'gestion_menu.dart';
 import 'package:japale/welcomPage.dart';
 import 'tableau_bord_restaurant.dart';
+import 'inscription_etudiant.dart';
+import 'inscription_restaurant.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +24,7 @@ class MyApp extends StatelessWidget {
       ),
 
       // Change cette ligne pour tester une page
-      home: const TableauBordRestaurant(),
+      home: const InscriptionRestaurant(),
     );
   }
 }

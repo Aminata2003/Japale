@@ -45,7 +45,7 @@ class AppRoutes {
   static Map<String, WidgetBuilder> get routes {
     return {
       choixProfil: (context) => const ChoixProfilPage(),
-      connexion: (context) => const ConnexionPage(),
+      connexion: (context) => const ConnexionPage(profil: '',),
       inscriptionEtudiant: (context) => const InscriptionEtudiant(),
       inscriptionLivreur: (context) => const InscriptionLivreur(),
       // inscriptionRestaurant: (context) => const InscriptionRestaurant(),
