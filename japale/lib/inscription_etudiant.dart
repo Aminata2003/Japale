@@ -1,16 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
-
-/// Page "Créer un compte Étudiant"
-/// À placer dans lib/inscription_etudiant.dart
-///
-/// N'oublie pas d'ajouter le package image_picker dans pubspec.yaml :
-///   dependencies:
-///     image_picker: ^1.1.2
-///
-/// Puis lance : flutter pub get
+import './widgets/connexion.dart';
+import 'package:japale/models/user_session.dart';
 
 const Color kOrange = Color(0xFFF06429);
 const Color kOrangeLight = Color(0xFFFDF3EE);
@@ -131,16 +123,19 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
       return;
     }
 
-    // TODO: brancher ici l'appel à ton backend / Firebase pour créer le compte
-    // Exemple :
-    // final utilisateur = {
-    //   'prenom': _prenomController.text.trim(),
-    //   'nom': _nomController.text.trim(),
-    //   'email': _emailController.text.trim(),
-    //   'telephone': '+221${_telephoneController.text.trim()}',
-    //   'cite': _citeSelectionnee,
-    //   'photoProfil': _photoProfil?.path,
-    // };
+    // Sauvegarde dans UserSession
+    UserSession.prenom = _prenomController.text.trim();
+    UserSession.nom = _nomController.text.trim();
+    UserSession.email = _emailController.text.trim();
+    UserSession.telephone = _telephoneController.text.trim();
+    UserSession.village = _citeSelectionnee!;
+    UserSession.motDePasse = _motDePasseController.text;
+
+    // Pour déboguer - affiche dans la console
+    print('=== INSCRIPTION RÉUSSIE ===');
+    print('Email: ${UserSession.email}');
+    print('Mot de passe: ${UserSession.motDePasse}');
+    print('============================');
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Compte créé avec succès !')),

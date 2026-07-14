@@ -11,7 +11,7 @@ import 'package:japale/acceuil_client.dart';
 // import 'package:japale/menu_restaurant.dart';
  //import 'package:japale/panier_page.dart';
 // import 'package:japale/suivi_commande.dart';
-// import 'package:japale/profil_etudiant.dart';
+ import 'package:japale/profil_etudiant.dart';
 // import 'package:japale/profil_livreur.dart';
 // import 'package:japale/gestion_de_menu.dart';
 // import 'package:japale/publication_menu_restaurant.dart';
@@ -50,7 +50,7 @@ class AppRoutes {
       // menuRestaurant: (context) => const MenuRestaurant(),
       //static const String PanierPage= '/panier_page';
       // suiviCommande: (context) => const SuiviCommande(),
-      // profilEtudiant: (context) => const ProfilEtudiant(),
+      profilEtudiant: (context) => const ProfilEtudiant(),
       // profilLivreur: (context) => const ProfilLivreur(),
       // gestionDeMenu: (context) => const GestionDeMenu(),
       // publicationMenu: (context) => const PublicationMenuRestaurant(),

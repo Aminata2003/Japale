@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/restaurant.dart';
 import 'panier_page.dart';
+import 'package:japale/widgets/japale_bottom_nav.dart';
+import 'package:japale/profil_etudiant.dart';
+import 'package:japale/models/user_session.dart';
 
 class AccueilClient extends StatefulWidget {
   const AccueilClient({super.key});
@@ -89,7 +92,40 @@ Widget build(BuildContext context) {
       
     ),
     // on l'ajoute juste après
-    bottomNavigationBar: _buildBottomNav(),
+    bottomNavigationBar: JapaleBottomNav(
+  currentIndex: _currentNavIndex,
+  onTap: (index) {
+    if (index == _currentNavIndex) return;
+
+    setState(() {
+      _currentNavIndex = index;
+    });
+
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AccueilClient()),
+        );
+        break;
+      case 1:
+        // TODO: page Restaurants pas encore créée
+        break;
+      case 2:
+        // TODO: page Commandes pas encore créée
+        break;
+      case 3:
+        // TODO: page Alertes pas encore créée
+        break;
+      case 4:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfilEtudiant()),
+        );
+        break;
+    }
+  },
+),
   );
 }
 
@@ -388,26 +424,5 @@ Widget _buildRestaurantGrid() {
   );
 }
 
-Widget _buildBottomNav() {
-  return BottomNavigationBar(
-    currentIndex: _currentNavIndex,
-    onTap: (index) {
-      setState(() {
-        _currentNavIndex = index;
-      });
-      // TODO: naviguer vers la vraie page correspondante
-    },
-    type: BottomNavigationBarType.fixed, // important si plus de 3 items
-    selectedItemColor: const Color(0xFFB5401A),
-    unselectedItemColor: Colors.grey,
-    showUnselectedLabels: true,
-    items: const [
-      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-      BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Restaurants'),
-      BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Commandes'),
-      BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alertes'),
-      BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
-    ],
-  );
-}
+
 }
