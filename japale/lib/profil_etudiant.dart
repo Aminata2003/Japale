@@ -16,11 +16,11 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
   int _currentNavIndex = 4;
   bool _isInfoExpanded = false;
   bool _isAddressExpanded = false;
-  
+
   // Couleur principale de l'app
   static const Color kOrange = Color(0xFFFF6B35);
   static const Color kOrangeLight = Color(0xFFFFE4D6);
-  
+
   // Pour la gestion de l'image
   final ImagePicker _picker = ImagePicker();
   File? _photoProfil;
@@ -49,8 +49,9 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                 title: const Text('Choisir depuis la galerie'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.gallery);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
                   if (image != null) {
                     _updatePhoto(File(image.path));
                   }
@@ -61,8 +62,9 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                 title: const Text('Prendre une photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.camera);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                  );
                   if (image != null) {
                     _updatePhoto(File(image.path));
                   }
@@ -71,7 +73,10 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
               if (_photoProfil != null)
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Supprimer la photo', style: TextStyle(color: Colors.red)),
+                  title: const Text(
+                    'Supprimer la photo',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _supprimerPhoto();
@@ -95,7 +100,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
         _isLoading = false;
         UserSession.photoProfil = photo.path;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Photo de profil mise à jour !'),
@@ -110,7 +115,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
       _photoProfil = null;
       UserSession.photoProfil = null;
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Photo de profil supprimée'),
@@ -126,7 +131,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
     String email = UserSession.email ?? 'email@example.com';
     String telephone = UserSession.telephone ?? 'Non renseigné';
     String village = UserSession.village ?? 'Non renseigné';
-    
+
     String nomComplet = '$prenom $nom';
 
     return Scaffold(
@@ -168,12 +173,16 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                       _buildInfoRow(Icons.person_outline, 'Prénom', prenom),
                       _buildInfoRow(Icons.person, 'Nom', nom),
                       _buildInfoRow(Icons.email_outlined, 'Email', email),
-                      _buildInfoRow(Icons.phone_outlined, 'Téléphone', telephone),
+                      _buildInfoRow(
+                        Icons.phone_outlined,
+                        'Téléphone',
+                        telephone,
+                      ),
                       _buildInfoRow(Icons.home_outlined, 'Village', village),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   _buildExpandableInfoTile(
                     icon: Icons.location_on_outlined,
                     label: 'Mes adresses',
@@ -186,8 +195,8 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                     },
                     children: [
                       _buildInfoRow(
-                        Icons.location_on_outlined, 
-                        'Village de résidence', 
+                        Icons.location_on_outlined,
+                        'Village de résidence',
                         village,
                         isAddress: true,
                       ),
@@ -205,7 +214,10 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                             const Expanded(
                               child: Text(
                                 'Cette adresse sera utilisée pour les livraisons',
-                                style: TextStyle(fontSize: 12, color: Colors.black54),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
                               ),
                             ),
                           ],
@@ -222,10 +234,16 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
-                  _buildMenuTile(Icons.payments_outlined, 'Mes moyens de paiement'),
+
+                  _buildMenuTile(
+                    Icons.payments_outlined,
+                    'Mes moyens de paiement',
+                  ),
                   const SizedBox(height: 12),
-                  _buildMenuTile(Icons.receipt_long_outlined, 'Historique des commandes'),
+                  _buildMenuTile(
+                    Icons.receipt_long_outlined,
+                    'Historique des commandes',
+                  ),
                   const SizedBox(height: 12),
                   _buildMenuTile(Icons.settings_outlined, 'Paramètres'),
                   const SizedBox(height: 24),
@@ -261,10 +279,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            kOrange.withOpacity(0.9),
-            kOrange,
-          ],
+          colors: [kOrange.withOpacity(0.9), kOrange],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(28),
@@ -296,14 +311,14 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                             ),
                           )
                         : _photoProfil != null
-                            ? Image.file(
-                                _photoProfil!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildDefaultAvatar();
-                                },
-                              )
-                            : _buildDefaultAvatar(),
+                        ? Image.file(
+                            _photoProfil!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildDefaultAvatar();
+                            },
+                          )
+                        : _buildDefaultAvatar(),
                   ),
                 ),
               ),
@@ -320,7 +335,11 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -330,17 +349,17 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
           Text(
             nomComplet,
             style: const TextStyle(
-              color: Colors.white, 
-              fontSize: 20, 
-              fontWeight: FontWeight.bold
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Étudiant • UGB',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85), 
-              fontSize: 14
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 14,
             ),
           ),
           const SizedBox(height: 20),
@@ -382,20 +401,20 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
     return Column(
       children: [
         Text(
-          value, 
+          value,
           style: const TextStyle(
-            color: Colors.white, 
-            fontSize: 18, 
-            fontWeight: FontWeight.bold
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 2),
         Text(
-          label, 
+          label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8), 
-            fontSize: 10, 
-            letterSpacing: 0.5
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 10,
+            letterSpacing: 0.5,
           ),
         ),
       ],
@@ -403,7 +422,11 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
   }
 
   Widget _buildStatDivider() {
-    return Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3));
+    return Container(
+      width: 1,
+      height: 30,
+      color: Colors.white.withOpacity(0.3),
+    );
   }
 
   Widget _buildExpandableInfoTile({
@@ -439,17 +462,15 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      label, 
+                      label,
                       style: const TextStyle(
-                        fontSize: 15, 
-                        fontWeight: FontWeight.w500
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                   Icon(
-                    isExpanded 
-                        ? Icons.expand_less 
-                        : Icons.expand_more,
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
                     color: Colors.grey.shade400,
                   ),
                 ],
@@ -474,7 +495,12 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value, {bool isAddress = false}) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    bool isAddress = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -581,9 +607,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
               child: Icon(icon, color: kOrange, size: 20),
             ),
             const SizedBox(width: 14),
-            Expanded(
-              child: Text(label, style: const TextStyle(fontSize: 15)),
-            ),
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
             Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],
         ),
@@ -607,9 +631,9 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
         label: Text(
           'Se déconnecter',
           style: TextStyle(
-            color: kOrange, 
-            fontWeight: FontWeight.bold, 
-            fontSize: 15
+            color: kOrange,
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
           ),
         ),
       ),
@@ -618,7 +642,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
 
   void _showAddAddressDialog() {
     final TextEditingController _addressController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -666,9 +690,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kOrange,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: kOrange),
             child: const Text('Ajouter'),
           ),
         ],
@@ -677,8 +699,10 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
   }
 
   void _showEditAddressDialog(String currentAddress) {
-    final TextEditingController _addressController = TextEditingController(text: currentAddress);
-    
+    final TextEditingController _addressController = TextEditingController(
+      text: currentAddress,
+    );
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -726,9 +750,7 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kOrange,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: kOrange),
             child: const Text('Modifier'),
           ),
         ],
@@ -753,12 +775,12 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const ConnexionPage()),
+                MaterialPageRoute(
+                  builder: (context) => const ConnexionPage(profil: "etudiant"),
+                ),
               );
             },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Se déconnecter'),
           ),
         ],
