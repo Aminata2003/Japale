@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
 import 'package:flutter/gestures.dart';
+import 'package:japale/models/user_session.dart';
 
 /// Page "Créer un compte Étudiant"
 /// À placer dans lib/inscription_etudiant.dart
@@ -74,8 +75,9 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                 title: const Text('Choisir depuis la galerie'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.gallery);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
                   if (image != null) {
                     setState(() => _photoProfil = File(image.path));
                   }
@@ -86,8 +88,9 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                 title: const Text('Prendre une photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.camera);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                  );
                   if (image != null) {
                     setState(() => _photoProfil = File(image.path));
                   }
@@ -116,42 +119,42 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
 
     if (_motDePasseController.text != _confirmerMotDePasseController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Les mots de passe ne correspondent pas'),
-        ),
+        const SnackBar(content: Text('Les mots de passe ne correspondent pas')),
       );
       return;
     }
 
     if (_citeSelectionnee == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci de sélectionner votre village'),
-        ),
+        const SnackBar(content: Text('Merci de sélectionner votre village')),
       );
       return;
     }
 
-    // TODO: brancher ici l'appel à ton backend / Firebase pour créer le compte
-    // Exemple :
-    // final utilisateur = {
-    //   'prenom': _prenomController.text.trim(),
-    //   'nom': _nomController.text.trim(),
-    //   'email': _emailController.text.trim(),
-    //   'telephone': '+221${_telephoneController.text.trim()}',
-    //   'cite': _citeSelectionnee,
-    //   'photoProfil': _photoProfil?.path,
-    // };
+    // Sauvegarde dans UserSession
+    UserSession.prenom = _prenomController.text.trim();
+    UserSession.nom = _nomController.text.trim();
+    UserSession.email = _emailController.text.trim();
+    UserSession.telephone = _telephoneController.text.trim();
+    UserSession.village = _citeSelectionnee!;
+    UserSession.motDePasse = _motDePasseController.text;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Compte créé avec succès !')),
-    );
+    // Pour déboguer - affiche dans la console
+    print('=== INSCRIPTION RÉUSSIE ===');
+    print('Email: ${UserSession.email}');
+    print('Mot de passe: ${UserSession.motDePasse}');
+    print('============================');
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Compte créé avec succès !')));
 
     // Redirige vers la page de connexion après inscription
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-          builder: (context) => ConnexionPage(profil: _photoProfil?.path ?? '')),
+        builder: (context) => ConnexionPage(profil: _photoProfil?.path ?? ''),
+      ),
     );
   }
 
@@ -211,7 +214,8 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Requis';
                           final email = v.trim().toLowerCase();
-                          final domaineValide = email.endsWith('@ugb.edu.sn') ||
+                          final domaineValide =
+                              email.endsWith('@ugb.edu.sn') ||
                               email.endsWith('@gmail.com');
                           if (!domaineValide) {
                             return 'Utilise une adresse @ugb.edu.sn ou @gmail.com';
@@ -227,16 +231,18 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                         controller: _motDePasseController,
                         visible: _motDePasseVisible,
                         onToggle: () => setState(
-                            () => _motDePasseVisible = !_motDePasseVisible),
+                          () => _motDePasseVisible = !_motDePasseVisible,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildChampMotDePasse(
                         label: 'Confirmer le mot de passe',
                         controller: _confirmerMotDePasseController,
                         visible: _confirmerMotDePasseVisible,
-                        onToggle: () => setState(() =>
-                            _confirmerMotDePasseVisible =
-                                !_confirmerMotDePasseVisible),
+                        onToggle: () => setState(
+                          () => _confirmerMotDePasseVisible =
+                              !_confirmerMotDePasseVisible,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildDropdownCite(),
@@ -307,8 +313,9 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
             CircleAvatar(
               radius: 45,
               backgroundColor: kOrangeLight,
-              backgroundImage:
-                  _photoProfil != null ? FileImage(_photoProfil!) : null,
+              backgroundImage: _photoProfil != null
+                  ? FileImage(_photoProfil!)
+                  : null,
               child: _photoProfil == null
                   ? const Icon(Icons.person, size: 40, color: kOrange)
                   : null,
@@ -345,8 +352,10 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -362,8 +371,10 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Numéro de téléphone',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        const Text(
+          'Numéro de téléphone',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -374,8 +385,10 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: kOrange.withOpacity(0.3)),
               ),
-              child: const Text('+221',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text(
+                '+221',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -402,8 +415,10 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -431,8 +446,10 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Village de résidence',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        const Text(
+          'Village de résidence',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: _citeSelectionnee,
@@ -481,66 +498,57 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     );
   }
 
- Widget _buildBoutonInscription() {
-  return SizedBox(
-    width: double.infinity,
-    height: 55,
-    child: ElevatedButton(
-      onPressed: _sInscrire,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: kOrange,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
+  Widget _buildBoutonInscription() {
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: _sInscrire,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kOrange,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: const Text(
+          "S'inscrire",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
-      child: const Text(
-        "S'inscrire",
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLienConnexion() {
-  return Center(
-    child: RichText(
-      text: TextSpan(
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 14,
-        ),
-        children: [
-          const TextSpan(
-            text: "Déjà un compte ? ",
-          ),
-          TextSpan(
-            text: "Se connecter",
-            style: const TextStyle(
-              color: kOrange,
-              fontWeight: FontWeight.bold,
-            ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ConnexionPage(
-                      profil: "etudiant",
+    return Center(
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          children: [
+            const TextSpan(text: "Déjà un compte ? "),
+            TextSpan(
+              text: "Se connecter",
+              style: const TextStyle(
+                color: kOrange,
+                fontWeight: FontWeight.bold,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ConnexionPage(profil: "etudiant"),
                     ),
-                  ),
-                );
-              },
-          ),
-        ],
+                  );
+                },
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,

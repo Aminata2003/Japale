@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:japale/inscription_livreur.dart';
-import 'package:japale/acceuil_client.dart'; // adapte le nom du fichier/classe si besoin
+import 'package:japale/acceuil_client.dart';
 import 'package:japale/widgets/japale_logo.dart';
+import 'package:japale/models/user_session.dart';
 
 
 class ConnexionPage extends StatefulWidget {
@@ -13,7 +14,54 @@ class ConnexionPage extends StatefulWidget {
 }
 
 class _ConnexionPageState extends State<ConnexionPage> {
-  bool _obscurePassword = true; // mot de passe caché par défaut
+  bool _obscurePassword = true;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _seConnecter() {
+    // Récupérer les valeurs saisies
+    String emailSaisi = _emailController.text.trim();
+    String motDePasseSaisi = _passwordController.text;
+
+    // Pour déboguer - affiche dans la console
+    print('=== TENTATIVE DE CONNEXION ===');
+    print('Email saisi: "$emailSaisi"');
+    print('Email stocké: "${UserSession.email}"');
+    print('Mot de passe saisi: "$motDePasseSaisi"');
+    print('Mot de passe stocké: "${UserSession.motDePasse}"');
+    print('================================');
+
+    // Comparer avec les données stockées dans UserSession
+    if (emailSaisi == UserSession.email && 
+        motDePasseSaisi == UserSession.motDePasse) {
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion réussie !'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AccueilClient()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email ou mot de passe incorrect"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +113,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
         const Text('Adresse email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         TextFormField(
+          controller: _emailController, // ✅ CONTROLLER AJOUTÉ
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             hintText: 'etudiant@ugb.sn',
@@ -90,7 +139,8 @@ class _ConnexionPageState extends State<ConnexionPage> {
         const Text('Mot de passe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         TextFormField(
-          obscureText: _obscurePassword, // <- la clé du toggle
+          controller: _passwordController, // ✅ CONTROLLER AJOUTÉ
+          obscureText: _obscurePassword,
           decoration: InputDecoration(
             hintText: '••••••••',
             prefixIcon: const Icon(Icons.lock_outline),
@@ -135,14 +185,7 @@ class _ConnexionPageState extends State<ConnexionPage> {
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: () {
-          // TODO: brancher ici la vraie logique de connexion (vérif email/mdp,
-          // appel API/Firebase). Une fois la connexion validée :
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const AccueilClient()),
-          );
-        },
+        onPressed: _seConnecter,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B35),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -222,9 +265,9 @@ class _ConnexionPageState extends State<ConnexionPage> {
         const JapaleLogo(
           size: 100,
           iconSize: 44,
-          backgroundColor: Color(0xFFFFE4D6), // orange très clair, opaque
-          iconColor: Color(0xFFFF6B35),        // orange foncé, contraste net
-          isCircle: false,                      // carré arrondi, comme ta maquette Connexion
+          backgroundColor: Color(0xFFFFE4D6),
+          iconColor: Color(0xFFFF6B35),
+          isCircle: false,
         ),
         const SizedBox(height: 16),
         const Text(
