@@ -1,30 +1,31 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:japale/services/cloudinary_service.dart';
 import 'models/plat.dart';
 
 const Color kOrange = Color(0xFFFF6B35);
 const Color kOrangeLight = Color(0xFFFDF3EE);
 
-/// Page "Ajouter un Plat".
-/// C'est une sous-page (accessible depuis le bouton + de Gestion du Menu),
-/// PAS d'onglet de navigation en bas ici — juste un bouton retour.
+/// Page "Ajouter un Plat" / "Modifier le Plat".
+/// Écrit directement dans Firestore : restaurants/{uid}/plats/{platId}
+/// et héberge la photo sur Firebase Storage.
 ///
 /// Utilisation depuis gestion_menu.dart :
 /// ```dart
-/// final nouveauPlat = await Navigator.push<Plat>(
+/// final resultat = await Navigator.push<bool>(
 ///   context,
-///   MaterialPageRoute(builder: (context) => const PublicationMenu()),
+///   MaterialPageRoute(builder: (context) => PublicationMenu(platExistant: plat)),
 /// );
-/// if (nouveauPlat != null) {
-///   setState(() => _plats.add(nouveauPlat));
-/// }
+/// // resultat == true si un plat a été créé/modifié — pas besoin de
+/// // gérer la liste manuellement, le StreamBuilder de gestion_menu.dart
+/// // se met à jour automatiquement depuis Firestore.
 /// ```
 class PublicationMenu extends StatefulWidget {
   const PublicationMenu({super.key, this.platExistant});
 
-  /// Si non-null, on est en mode "modifier un plat existant" plutôt que
-  /// "ajouter un nouveau plat".
   final Plat? platExistant;
 
   @override
@@ -41,21 +42,26 @@ class _PublicationMenuState extends State<PublicationMenu> {
   String? _categorieSelectionnee;
   final List<String> _categories = ['Riz', 'Viande', 'Poisson', 'Boisson'];
 
-  File? _photoPlat;
+  File? _photoPlat; // nouvelle photo choisie localement (pas encore uploadée)
+  String? _photoUrlExistante; // photo déjà présente (mode édition)
   final ImagePicker _picker = ImagePicker();
 
   bool _disponible = true;
+  bool _enCoursDEnregistrement = false;
 
   @override
   void initState() {
     super.initState();
     final plat = widget.platExistant;
     _nomController = TextEditingController(text: plat?.nom ?? '');
-    _prixController =
-        TextEditingController(text: plat != null ? plat.prixFcfa.toString() : '');
-    _descriptionController = TextEditingController(text: plat?.description ?? '');
+    _prixController = TextEditingController(
+      text: plat != null ? plat.prixFcfa.toString() : '',
+    );
+    _descriptionController = TextEditingController(
+      text: plat?.description ?? '',
+    );
     _categorieSelectionnee = plat?.categorie;
-    _photoPlat = plat?.image;
+    _photoUrlExistante = plat?.imageUrl;
     _disponible = plat?.disponible ?? true;
   }
 
@@ -82,8 +88,9 @@ class _PublicationMenuState extends State<PublicationMenu> {
                 title: const Text('Choisir depuis la galerie'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.gallery);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
                   if (image != null) {
                     setState(() => _photoPlat = File(image.path));
                   }
@@ -94,8 +101,9 @@ class _PublicationMenuState extends State<PublicationMenu> {
                 title: const Text('Prendre une photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.camera);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                  );
                   if (image != null) {
                     setState(() => _photoPlat = File(image.path));
                   }
@@ -108,7 +116,7 @@ class _PublicationMenuState extends State<PublicationMenu> {
     );
   }
 
-  void _enregistrerLePlat() {
+  Future<void> _enregistrerLePlat() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_categorieSelectionnee == null) {
@@ -118,20 +126,81 @@ class _PublicationMenuState extends State<PublicationMenu> {
       return;
     }
 
-    final plat = Plat(
-      id: widget.platExistant?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      nom: _nomController.text.trim(),
-      prixFcfa: int.tryParse(_prixController.text.trim()) ?? 0,
-      description: _descriptionController.text.trim(),
-      categorie: _categorieSelectionnee!,
-      image: _photoPlat,
-      disponible: _disponible,
-    );
+    final restaurantId = FirebaseAuth.instance.currentUser?.uid;
+    if (restaurantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vous devez être connecté pour publier un plat'),
+        ),
+      );
+      return;
+    }
 
-    // TODO: brancher ici l'appel backend/Firebase pour sauvegarder le plat.
+    setState(() => _enCoursDEnregistrement = true);
 
-    Navigator.pop(context, plat);
+    try {
+      final modeEdition = widget.platExistant != null;
+      final platsRef = FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(restaurantId)
+          .collection('plats');
+
+      // Détermine l'id du document : existant en mode édition, sinon
+      // généré à l'avance pour pouvoir nommer la photo sur Storage.
+      final String platId = modeEdition
+          ? widget.platExistant!.id
+          : platsRef.doc().id;
+
+      // Upload de la nouvelle photo si l'utilisateur en a choisi une.
+      String? urlPhoto = _photoUrlExistante;
+      if (_photoPlat != null) {
+        urlPhoto = await CloudinaryService.uploadImage(
+          _photoPlat!,
+          folder: 'plats/$restaurantId',
+        );
+        if (urlPhoto == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Échec de l'upload de la photo du plat"),
+            ),
+          );
+          setState(() => _enCoursDEnregistrement = false);
+          return;
+        }
+      }
+
+      final plat = Plat(
+        id: platId,
+        nom: _nomController.text.trim(),
+        prixFcfa: int.tryParse(_prixController.text.trim()) ?? 0,
+        description: _descriptionController.text.trim(),
+        categorie: _categorieSelectionnee!,
+        imageUrl: urlPhoto,
+        disponible: _disponible,
+      );
+
+      await platsRef.doc(platId).set(plat.toFirestore());
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            modeEdition
+                ? 'Plat modifié avec succès !'
+                : 'Plat ajouté avec succès !',
+          ),
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de l\'enregistrement : $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _enCoursDEnregistrement = false);
+    }
   }
 
   @override
@@ -157,7 +226,10 @@ class _PublicationMenuState extends State<PublicationMenu> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(20),
@@ -182,13 +254,17 @@ class _PublicationMenuState extends State<PublicationMenu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Photo du plat',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Photo du plat',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               _buildZonePhoto(),
               const SizedBox(height: 20),
-              const Text('Nom du plat',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Nom du plat',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nomController,
@@ -197,8 +273,10 @@ class _PublicationMenuState extends State<PublicationMenu> {
                     (v == null || v.trim().isEmpty) ? 'Requis' : null,
               ),
               const SizedBox(height: 20),
-              const Text('Catégorie',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Catégorie',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _categorieSelectionnee,
@@ -210,8 +288,10 @@ class _PublicationMenuState extends State<PublicationMenu> {
                     setState(() => _categorieSelectionnee = value),
               ),
               const SizedBox(height: 20),
-              const Text('Prix (FCFA)',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Prix (FCFA)',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _prixController,
@@ -227,8 +307,10 @@ class _PublicationMenuState extends State<PublicationMenu> {
                 },
               ),
               const SizedBox(height: 20),
-              const Text('Description',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'Description',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
@@ -249,14 +331,20 @@ class _PublicationMenuState extends State<PublicationMenu> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Disponible dès maintenant',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
+                          const Text(
+                            'Disponible dès maintenant',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             'Le plat apparaîtra immédiatement sur le menu',
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600),
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -274,19 +362,34 @@ class _PublicationMenuState extends State<PublicationMenu> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton.icon(
-                  onPressed: _enregistrerLePlat,
+                  onPressed: _enCoursDEnregistrement
+                      ? null
+                      : _enregistrerLePlat,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kOrange,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28)),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
                   ),
-                  icon: const Icon(Icons.save_outlined, color: Colors.white),
-                  label: const Text(
-                    'Enregistrer le plat',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15),
+                  icon: _enCoursDEnregistrement
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.save_outlined, color: Colors.white),
+                  label: Text(
+                    _enCoursDEnregistrement
+                        ? 'Enregistrement...'
+                        : 'Enregistrer le plat',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ),
@@ -312,23 +415,36 @@ class _PublicationMenuState extends State<PublicationMenu> {
             width: 1.4,
           ),
         ),
-        child: _photoPlat != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.file(_photoPlat!, fit: BoxFit.cover),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.camera_alt, color: kOrange, size: 28),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Cliquez pour ajouter une photo',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                ],
-              ),
+        child: _buildContenuPhoto(),
       ),
+    );
+  }
+
+  Widget _buildContenuPhoto() {
+    // Priorité à la photo tout juste choisie localement (prévisualisation).
+    if (_photoPlat != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.file(_photoPlat!, fit: BoxFit.cover),
+      );
+    }
+    // Sinon, si on est en mode édition, on affiche la photo déjà en ligne.
+    if (_photoUrlExistante != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(_photoUrlExistante!, fit: BoxFit.cover),
+      );
+    }
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.camera_alt, color: kOrange, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          'Cliquez pour ajouter une photo',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        ),
+      ],
     );
   }
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'models/plat.dart';
 import 'publication_menu.dart';
 import 'restaurant_bottom_nav.dart';
+import 'package:japale/models/user_session.dart';
 
 const Color kOrange = Color(0xFFFF6B35);
 const Color kOrangeLight = Color(0xFFFDF3EE);
@@ -17,68 +20,84 @@ class GestionMenu extends StatefulWidget {
 
 class _GestionMenuState extends State<GestionMenu> {
   final TextEditingController _rechercheController = TextEditingController();
-  String _categorieActive = 'Tous';
-  final List<String> _categories = ['Tous', 'Riz', 'Viande', 'Poisson', 'Boisson'];
 
-  // TODO: remplacer par les vrais plats venant du backend/Firebase.
-  final List<Plat> _plats = [
-    Plat(
-      id: '1',
-      nom: 'Mafé au Bœuf',
-      prixFcfa: 2500,
-      description:
-          'Riz blanc servi avec une onctueuse sauce arachide, bœuf tendre et légumes frais de saison.',
-      categorie: 'Viande',
-      disponible: true,
-    ),
-    Plat(
-      id: '2',
-      nom: 'Thieboudienne Rouge',
-      prixFcfa: 3000,
-      description:
-          'Riz rouge traditionnel au poisson, servi avec du farci de persil et des légumes mijotés.',
-      categorie: 'Poisson',
-      disponible: false,
-    ),
-    Plat(
-      id: '3',
-      nom: 'Jus de Bissap Glacé',
-      prixFcfa: 500,
-      description:
-          "Infusion de fleurs d'hibiscus rafraîchissante, parfumée à la menthe et à la vanille.",
-      categorie: 'Boisson',
-      disponible: true,
-    ),
+  String _categorieActive = 'Tous';
+
+  final List<String> _categories = [
+    'Tous',
+    'Riz',
+    'Viande',
+    'Poisson',
+    'Boisson',
   ];
+
+  List<Plat> _plats = [];
+  bool _chargement = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerMenus();
+  }
+
+  Future<void> _chargerMenus() async {
+    try {
+      final uidRestaurant = UserSession.uid;
+
+      if (uidRestaurant == null) {
+        throw Exception("Aucun restaurant connecté");
+      }
+
+      // ⚠️ Corrigé : la collection s'appelle "plats" (comme dans
+      // publication_menu.dart), pas "menus".
+      final snapshot = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(uidRestaurant)
+          .collection('plats')
+          .get();
+
+      final platsFirebase = snapshot.docs
+          .map((doc) => Plat.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      setState(() {
+        _plats = platsFirebase;
+        _chargement = false;
+      });
+    } catch (e) {
+      debugPrint("Erreur chargement menus Firebase : $e");
+      setState(() {
+        _chargement = false;
+      });
+    }
+  }
 
   List<Plat> get _platsFiltres {
     return _plats.where((plat) {
       final matchCategorie =
           _categorieActive == 'Tous' || plat.categorie == _categorieActive;
-      final matchRecherche = plat.nom
-          .toLowerCase()
-          .contains(_rechercheController.text.trim().toLowerCase());
+
+      final matchRecherche = plat.nom.toLowerCase().contains(
+            _rechercheController.text.trim().toLowerCase(),
+          );
+
       return matchCategorie && matchRecherche;
     }).toList();
   }
 
   Future<void> _ouvrirAjoutPlat({Plat? platExistant}) async {
-    final resultat = await Navigator.push<Plat>(
+    final resultat = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => PublicationMenu(platExistant: platExistant),
       ),
     );
 
-    if (resultat != null) {
-      setState(() {
-        if (platExistant != null) {
-          final index = _plats.indexWhere((p) => p.id == resultat.id);
-          if (index != -1) _plats[index] = resultat;
-        } else {
-          _plats.add(resultat);
-        }
-      });
+    // publication_menu.dart écrit déjà dans Firestore ; on recharge
+    // simplement la liste depuis la base pour rester synchronisé.
+    if (resultat == true) {
+      setState(() => _chargement = true);
+      await _chargerMenus();
     }
   }
 
@@ -99,14 +118,18 @@ class _GestionMenuState extends State<GestionMenu> {
         title: const Text(
           'Gestion du Menu',
           style: TextStyle(
-              color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18),
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(20),
@@ -139,8 +162,10 @@ class _GestionMenuState extends State<GestionMenu> {
                     prefixIcon: const Icon(Icons.search, color: kOrange),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 0,
+                      horizontal: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: Colors.grey.shade200),
@@ -154,10 +179,11 @@ class _GestionMenuState extends State<GestionMenu> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _categories.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final categorie = _categories[index];
                     final active = categorie == _categorieActive;
+
                     return ChoiceChip(
                       label: Text(categorie),
                       selected: active,
@@ -181,14 +207,18 @@ class _GestionMenuState extends State<GestionMenu> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
-                  itemCount: _platsFiltres.length,
-                  itemBuilder: (context, index) {
-                    final plat = _platsFiltres[index];
-                    return _buildCartePlat(plat);
-                  },
-                ),
+                child: _chargement
+                    ? const Center(
+                        child: CircularProgressIndicator(color: kOrange),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+                        itemCount: _platsFiltres.length,
+                        itemBuilder: (context, index) {
+                          final plat = _platsFiltres[index];
+                          return _buildCartePlat(plat);
+                        },
+                      ),
               ),
             ],
           ),
@@ -231,23 +261,26 @@ class _GestionMenuState extends State<GestionMenu> {
                 ClipRRect(
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(18)),
-                  child: plat.image != null
-                      ? Image.file(plat.image!,
-                          width: double.infinity, height: 150, fit: BoxFit.cover)
-                      : Container(
+                  child: plat.imageUrl != null
+                      ? Image.network(
+                          plat.imageUrl!,
                           width: double.infinity,
                           height: 150,
-                          color: kOrangeLight,
-                          child: const Icon(Icons.restaurant, color: kOrange, size: 40),
-                        ),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _placeholderImage(),
+                        )
+                      : _placeholderImage(),
                 ),
                 if (!plat.disponible)
                   Positioned(
                     left: 12,
                     top: 12,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
                         borderRadius: BorderRadius.circular(20),
@@ -255,9 +288,10 @@ class _GestionMenuState extends State<GestionMenu> {
                       child: const Text(
                         'ÉPUISÉ',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ),
@@ -275,13 +309,17 @@ class _GestionMenuState extends State<GestionMenu> {
                         child: Text(
                           plat.nom,
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       Text(
                         '${plat.prixFcfa} FCFA',
                         style: const TextStyle(
-                            color: kOrange, fontWeight: FontWeight.bold),
+                          color: kOrange,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -306,31 +344,46 @@ class _GestionMenuState extends State<GestionMenu> {
                       ),
                       const Spacer(),
                       if (plat.disponible)
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(Icons.check_circle, color: Colors.green, size: 18),
                             SizedBox(width: 4),
-                            Text('En stock',
-                                style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
+                            Text(
+                              'En stock',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         )
                       else
                         Row(
                           children: [
-                            Text('Rupture',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
+                            Text(
+                              'Rupture',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
                             Transform.scale(
                               scale: 0.75,
                               child: Switch(
                                 value: false,
-                                onChanged: (v) {
+                                onChanged: (v) async {
                                   setState(() => plat.disponible = v);
+                                  final uidRestaurant = UserSession.uid;
+                                  if (uidRestaurant != null) {
+                                    await FirebaseFirestore.instance
+                                        .collection('restaurants')
+                                        .doc(uidRestaurant)
+                                        .collection('plats')
+                                        .doc(plat.id)
+                                        .update({'disponible': v});
+                                  }
                                 },
                                 activeThumbColor: kOrange,
                               ),
@@ -345,6 +398,15 @@ class _GestionMenuState extends State<GestionMenu> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _placeholderImage() {
+    return Container(
+      width: double.infinity,
+      height: 150,
+      color: kOrangeLight,
+      child: const Icon(Icons.restaurant, color: kOrange, size: 40),
     );
   }
 }

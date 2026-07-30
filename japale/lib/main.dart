@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'gestion_menu.dart';
-import 'package:japale/welcomPage.dart';
-import 'tableau_bord_restaurant.dart';
-import 'inscription_etudiant.dart';
-import 'inscription_restaurant.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // généré automatiquement par flutterfire configure
+import 'routes.dart';
 
-void main() {
+Future<void> main() async {
+  // Obligatoire avant tout appel Firebase.
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
@@ -17,14 +20,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Japale',
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B35)),
         useMaterial3: true,
       ),
 
-      // Change cette ligne pour tester une page
-      home: const InscriptionRestaurant(),
+      // Toute la navigation passe maintenant par routes.dart.
+      // Pour tester une page précise pendant le développement, changez
+      // temporairement la ligne ci-dessous plutôt que celle-ci — ça évite
+      // les conflits Git sur ce fichier entre vous deux.
+      initialRoute: AppRoutes.welcome,
+      routes: AppRoutes.routes,
     );
   }
 }

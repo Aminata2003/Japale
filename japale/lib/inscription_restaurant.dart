@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
 import 'package:flutter/gestures.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:japale/services/cloudinary_service.dart';
+import './widgets/connexion.dart';
 
 const Color kOrange = Color(0xFFFF6B35);
 const Color kOrangeLight = Color(0xFFFDF3EE);
@@ -18,17 +20,21 @@ class InscriptionRestaurant extends StatefulWidget {
 class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nomRestaurantController = TextEditingController();
-  final TextEditingController _nomProprietaireController = TextEditingController();
+  final TextEditingController _nomRestaurantController =
+      TextEditingController();
+  final TextEditingController _nomProprietaireController =
+      TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _telephoneController = TextEditingController();
   final TextEditingController _adresseController = TextEditingController();
   final TextEditingController _motDePasseController = TextEditingController();
-  final TextEditingController _confirmerMotDePasseController = TextEditingController();
+  final TextEditingController _confirmerMotDePasseController =
+      TextEditingController();
 
   bool _motDePasseVisible = false;
   bool _confirmerMotDePasseVisible = false;
   bool _accepteConditions = false;
+  bool _inscriptionEnCours = false;
 
   File? _photoRestaurant;
   final ImagePicker _picker = ImagePicker();
@@ -60,8 +66,9 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
                 title: const Text('Choisir depuis la galerie'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.gallery);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                  );
                   if (image != null) {
                     setState(() => _photoRestaurant = File(image.path));
                   }
@@ -72,8 +79,9 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
                 title: const Text('Prendre une photo'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final XFile? image =
-                      await _picker.pickImage(source: ImageSource.camera);
+                  final XFile? image = await _picker.pickImage(
+                    source: ImageSource.camera,
+                  );
                   if (image != null) {
                     setState(() => _photoRestaurant = File(image.path));
                   }
@@ -86,16 +94,28 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
     );
   }
 
-  void _sInscrire() {
-    if (!_formKey.currentState!.validate()) {
-      return;
+  /// Upload la photo du restaurant sur Cloudinary (remplace l'ancien
+  /// Firebase Storage, qui exige désormais un compte Blaze avec carte
+  /// bancaire).
+  Future<String?> _envoyerPhoto() async {
+    if (_photoRestaurant == null) return null;
+    try {
+      return await CloudinaryService.uploadImage(
+        _photoRestaurant!,
+        folder: 'profils_restaurants',
+      );
+    } catch (e) {
+      debugPrint("Erreur upload photo restaurant : $e");
+      return null;
     }
+  }
+
+  Future<void> _sInscrire() async {
+    if (!_formKey.currentState!.validate()) return;
 
     if (!_accepteConditions) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci d\'accepter les conditions d\'utilisation'),
-        ),
+        const SnackBar(content: Text("Merci d'accepter les conditions")),
       );
       return;
     }
@@ -107,25 +127,90 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
       return;
     }
 
-    // TODO: brancher ici l'appel à ton backend / Firebase pour créer le
-    // compte restaurant. Exemple :
-    // final restaurant = {
-    //   'nomRestaurant': _nomRestaurantController.text.trim(),
-    //   'nomProprietaire': _nomProprietaireController.text.trim(),
-    //   'email': _emailController.text.trim(),
-    //   'telephone': '+221${_telephoneController.text.trim()}',
-    //   'adresse': _adresseController.text.trim(),
-    //   'photo': _photoRestaurant?.path,
-    // };
+    setState(() => _inscriptionEnCours = true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Compte restaurant créé avec succès !')),
-    );
+    try {
+      final UserCredential credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _motDePasseController.text.trim(),
+          );
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const ConnexionPage(profil: '',)),
-    );
+      final User user = credential.user!;
+      final String? photoUrl = await _envoyerPhoto();
+
+      // Le document restaurants/{uid} inclut dès la création les champs
+      // par défaut attendus par tableau_bord_restaurant.dart, gestion_menu.dart
+      // ET par le modèle Restaurant (accueil_client.dart, côté étudiant).
+      await FirebaseFirestore.instance.collection('restaurants').doc(user.uid).set({
+        'uid': user.uid,
+
+        // Champs "internes" (gestion, contact, dashboard restaurant)
+        'nomRestaurant': _nomRestaurantController.text.trim(),
+        'nomResponsable': _nomProprietaireController.text.trim(),
+        'email': _emailController.text.trim(),
+        'telephone': '+221${_telephoneController.text.trim()}',
+        'adresse': _adresseController.text.trim(),
+        'photoUrl': photoUrl ?? '',
+        'role': 'restaurant',
+        'statut': 'en_attente',
+        'ouvert': true,
+        'chiffreAffairesDuJour': 0,
+        'commandesEnCours': 0,
+        'livraisonsEffectuees': 0,
+        'nombreAvis': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+
+        // Champs attendus par le modèle Restaurant côté étudiant
+        // (accueil_client.dart) — dupliqués pour ne pas casser ce fichier.
+        'name': _nomRestaurantController.text.trim(),
+        'imagePath': photoUrl ?? '',
+        'rating': 0.0,
+        'noteMoyenne': 0.0, // même valeur, nom utilisé côté dashboard
+        // TODO: 'price' représente les frais de livraison (voir
+        // PanierPage(fraisLivraison: restaurant.price) dans accueil_client.dart).
+        // Pas encore de champ dans ce formulaire pour le configurer — valeur
+        // par défaut à ajuster plus tard depuis un écran "Modifier mon profil".
+        'price': 500,
+        'deliveryMinutes': 30,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compte restaurant créé avec succès !'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ConnexionPage(profil: "restaurant"),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = "Erreur d'inscription";
+      if (e.code == 'email-already-in-use') {
+        message = "Cet email est déjà utilisé";
+      } else if (e.code == 'weak-password') {
+        message = "Mot de passe trop faible";
+      } else if (e.code == 'invalid-email') {
+        message = "Email invalide";
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur : $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _inscriptionEnCours = false);
+    }
   }
 
   @override
@@ -172,9 +257,8 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Requis';
-                          if (!v.contains('@') || !v.contains('.')) {
-                            return 'Adresse email invalide';
-                          }
+                          if (!v.contains('@') || !v.contains('.'))
+                            return 'Email invalide';
                           return null;
                         },
                       ),
@@ -194,16 +278,18 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
                         controller: _motDePasseController,
                         visible: _motDePasseVisible,
                         onToggle: () => setState(
-                            () => _motDePasseVisible = !_motDePasseVisible),
+                          () => _motDePasseVisible = !_motDePasseVisible,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildChampMotDePasse(
                         label: 'Confirmer le mot de passe',
                         controller: _confirmerMotDePasseController,
                         visible: _confirmerMotDePasseVisible,
-                        onToggle: () => setState(() =>
-                            _confirmerMotDePasseVisible =
-                                !_confirmerMotDePasseVisible),
+                        onToggle: () => setState(
+                          () => _confirmerMotDePasseVisible =
+                              !_confirmerMotDePasseVisible,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildCaseConditions(),
@@ -272,8 +358,9 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
             CircleAvatar(
               radius: 45,
               backgroundColor: kOrangeLight,
-              backgroundImage:
-                  _photoRestaurant != null ? FileImage(_photoRestaurant!) : null,
+              backgroundImage: _photoRestaurant != null
+                  ? FileImage(_photoRestaurant!)
+                  : null,
               child: _photoRestaurant == null
                   ? const Icon(Icons.storefront, size: 40, color: kOrange)
                   : null,
@@ -310,8 +397,10 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -324,37 +413,13 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
   }
 
   Widget _buildChampTelephone() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Numéro de téléphone',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-              decoration: BoxDecoration(
-                color: kOrangeLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kOrange.withOpacity(0.3)),
-              ),
-              child: const Text('+221',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextFormField(
-                controller: _telephoneController,
-                keyboardType: TextInputType.phone,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
-                decoration: _inputDecoration('77 123 45 67'),
-              ),
-            ),
-          ],
-        ),
-      ],
+    return _buildChampTexte(
+      label: 'Téléphone',
+      controller: _telephoneController,
+      hint: '77 123 45 67',
+      keyboardType: TextInputType.phone,
+      validator: (v) =>
+          (v == null || v.trim().isEmpty) ? 'Téléphone requis' : null,
     );
   }
 
@@ -367,8 +432,10 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -395,32 +462,15 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
   Widget _buildCaseConditions() {
     return Row(
       children: [
-        SizedBox(
-          width: 22,
-          height: 22,
-          child: Checkbox(
-            value: _accepteConditions,
-            activeColor: kOrange,
-            onChanged: (value) =>
-                setState(() => _accepteConditions = value ?? false),
-          ),
+        Checkbox(
+          value: _accepteConditions,
+          activeColor: kOrange,
+          onChanged: (v) => setState(() => _accepteConditions = v ?? false),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: const TextStyle(color: Colors.black87, fontSize: 13),
-              children: [
-                const TextSpan(text: "J'accepte les "),
-                TextSpan(
-                  text: "conditions d'utilisation",
-                  style: const TextStyle(
-                    color: kOrange,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+        const Expanded(
+          child: Text(
+            "J'accepte les conditions d'utilisation",
+            style: TextStyle(fontSize: 13),
           ),
         ),
       ],
@@ -428,88 +478,76 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
   }
 
   Widget _buildBoutonInscription() {
-  return SizedBox(
-    width: double.infinity,
-    height: 55,
-    child: ElevatedButton(
-      onPressed: _sInscrire,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: kOrange,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: _inscriptionEnCours ? null : _sInscrire,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kOrange,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
+        child: _inscriptionEnCours
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                "S'inscrire",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
-      child: const Text(
-        "S'inscrire",
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLienConnexion() {
-  return Center(
-    child: RichText(
-      text: TextSpan(
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 14,
-        ),
-        children: [
-          const TextSpan(
-            text: "Déjà un compte ? ",
-          ),
-          TextSpan(
-            text: "Se connecter",
-            style: const TextStyle(
-              color: kOrange,
-              fontWeight: FontWeight.bold,
-            ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ConnexionPage(
-                      profil: "etudiant",
+    return Center(
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          children: [
+            const TextSpan(text: "Déjà un compte ? "),
+            TextSpan(
+              text: "Se connecter",
+              style: const TextStyle(
+                color: kOrange,
+                fontWeight: FontWeight.bold,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ConnexionPage(profil: "restaurant"),
                     ),
-                  ),
-                );
-              },
-          ),
-        ],
+                  );
+                },
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400),
       filled: true,
       fillColor: kOrangeLight,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kOrange, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
       ),
     );
   }

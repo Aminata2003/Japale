@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:japale/tableau_bord_restaurant.dart';
 import 'package:japale/gestion_menu.dart';
-import 'package:japale/panier_page.dart';
+import 'package:japale/commandes_restaurant.dart';
 import 'package:japale/profil_restaurant.dart';
 
 const Color kRestaurantOrange = Color(0xFFFF6B35);
@@ -30,7 +30,7 @@ class RestaurantBottomNav extends StatelessWidget {
         break;
 
       case 2:
-        page = const PanierPage(restaurantName: '', fraisLivraison: 0, items: [],);
+        page = const CommandesRestaurant();
         break;
 
       case 3:

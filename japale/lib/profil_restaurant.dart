@@ -1,26 +1,101 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'restaurant_bottom_nav.dart';
-import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
+import './widgets/connexion.dart';
 
 const Color kOrange = Color(0xFFFF6B35);
 const Color kOrangeLight = Color(0xFFFDF3EE);
 
-/// Page profil du restaurant. Fait partie du profil Restaurant :
-/// possède donc la RestaurantBottomNav (onglet "Profil" actif, index 3).
-class ProfilRestaurant extends StatelessWidget {
+class ProfilRestaurant extends StatefulWidget {
   const ProfilRestaurant({super.key});
 
-  // TODO: remplacer ces valeurs statiques par les vraies données du
-  // restaurant connecté (backend / Firebase).
-  static const String nomRestaurant = 'Maman Awa';
-  static const String adresse = 'Cité Kennedy, Saint-Louis';
-  static const String telephone = '+221 77 123 45 67';
-  static const String email = 'contact@mamanawa.sn';
-  static const double noteMoyenne = 4.8;
-  static const int nombreAvis = 124;
+  @override
+  State<ProfilRestaurant> createState() => _ProfilRestaurantState();
+}
+
+class _ProfilRestaurantState extends State<ProfilRestaurant> {
+  bool _loading = true;
+
+  String nomRestaurant = '';
+  String adresse = '';
+  String telephone = '';
+  String email = '';
+  String photo = '';
+  double noteMoyenne = 0.0;
+  int nombreAvis = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _chargerRestaurant();
+  }
+
+  Future<void> _chargerRestaurant() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        setState(() {
+          _loading = false;
+        });
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('restaurants')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+
+        setState(() {
+          nomRestaurant = data['nomRestaurant'] ?? '';
+          adresse = data['adresse'] ?? '';
+          telephone = data['telephone'] ?? '';
+          email = data['email'] ?? user.email ?? '';
+          photo = data['photoProfil'] ?? '';
+          noteMoyenne = (data['noteMoyenne'] ?? 0).toDouble();
+          nombreAvis = (data['nombreAvis'] ?? 0);
+
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          email = user.email ?? '';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _deconnexion(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const ConnexionPage(profil: '')),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF7F2EE),
+        body: Center(child: CircularProgressIndicator(color: kOrange)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F2EE),
       appBar: AppBar(
@@ -52,10 +127,13 @@ class ProfilRestaurant extends StatelessWidget {
         Stack(
           alignment: Alignment.bottomRight,
           children: [
-            const CircleAvatar(
-              radius: 48,
+            CircleAvatar(
+              radius: 50,
               backgroundColor: kOrangeLight,
-              child: Icon(Icons.storefront, size: 44, color: kOrange),
+              backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+              child: photo.isEmpty
+                  ? const Icon(Icons.storefront, size: 45, color: kOrange)
+                  : null,
             ),
             Container(
               padding: const EdgeInsets.all(6),
@@ -63,24 +141,28 @@ class ProfilRestaurant extends StatelessWidget {
                 color: kOrange,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 15,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        const Text(
-          nomRestaurant,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        const SizedBox(height: 14),
+        Text(
+          nomRestaurant.isEmpty ? 'Restaurant' : nomRestaurant,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.star, color: Colors.amber, size: 18),
             const SizedBox(width: 4),
             Text(
-              '$noteMoyenne  ($nombreAvis avis)',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+              '$noteMoyenne ($nombreAvis avis)',
+              style: TextStyle(color: Colors.grey.shade700),
             ),
           ],
         ),
@@ -90,46 +172,72 @@ class ProfilRestaurant extends StatelessWidget {
 
   Widget _buildSectionInfos() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildLigneInfo(Icons.location_on_outlined, 'Adresse', adresse),
-          const Divider(height: 24),
-          _buildLigneInfo(Icons.phone_outlined, 'Téléphone', telephone),
-          const Divider(height: 24),
-          _buildLigneInfo(Icons.mail_outline, 'Email', email),
+          _buildLigneInfo(
+            Icons.location_on_outlined,
+            'Adresse',
+            adresse.isEmpty ? 'Non renseignée' : adresse,
+          ),
+          const Divider(height: 28),
+          _buildLigneInfo(
+            Icons.phone_outlined,
+            'Téléphone',
+            telephone.isEmpty ? 'Non renseigné' : telephone,
+          ),
+          const Divider(height: 28),
+          _buildLigneInfo(
+            Icons.email_outlined,
+            'Adresse e-mail',
+            email.isEmpty ? 'Non renseignée' : email,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLigneInfo(IconData icon, String label, String valeur) {
+  Widget _buildLigneInfo(IconData icon, String titre, String valeur) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: kOrange, size: 20),
-        const SizedBox(width: 12),
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: kOrangeLight,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: kOrange),
+        ),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              const SizedBox(height: 2),
-              Text(valeur,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                titre,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                valeur,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -141,10 +249,10 @@ class ProfilRestaurant extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -156,29 +264,31 @@ class ProfilRestaurant extends StatelessWidget {
             icon: Icons.edit_outlined,
             label: 'Modifier les informations',
             onTap: () {
-              // TODO: navigation vers un écran de modification
+              // TODO:
+              // Ajouter ici la page de modification du restaurant
             },
           ),
+
           const Divider(height: 1),
+
           _buildOptionTile(
             icon: Icons.access_time,
             label: "Horaires d'ouverture",
             onTap: () {
-              // TODO: navigation vers un écran horaires
+              // TODO:
+              // Ajouter ici la gestion des horaires
             },
           ),
+
           const Divider(height: 1),
+
           _buildOptionTile(
             icon: Icons.logout,
             label: 'Se déconnecter',
             iconColor: Colors.redAccent,
             textColor: Colors.redAccent,
             onTap: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const ConnexionPage(profil: '',)),
-                (route) => false,
-              );
+              _deconnexion(context);
             },
           ),
         ],
@@ -194,9 +304,25 @@ class ProfilRestaurant extends StatelessWidget {
     Color textColor = Colors.black87,
   }) {
     return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(label, style: TextStyle(color: textColor)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iconColor, size: 22),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(color: textColor, fontWeight: FontWeight.w500),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios,
+        size: 14,
+        color: Colors.grey.shade400,
+      ),
       onTap: onTap,
     );
   }

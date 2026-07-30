@@ -1,18 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import './widgets/connexion.dart'; // adapte le nom du fichier si besoin
 import 'package:flutter/gestures.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import './widgets/connexion.dart';
 import 'package:japale/models/user_session.dart';
-
-/// Page "Créer un compte Étudiant"
-/// À placer dans lib/inscription_etudiant.dart
-///
-/// N'oublie pas d'ajouter le package image_picker dans pubspec.yaml :
-///   dependencies:
-///     image_picker: ^1.1.2
-///
-/// Puis lance : flutter pub get
+import 'package:japale/services/cloudinary_service.dart';
 
 const Color kOrange = Color(0xFFF06429);
 const Color kOrangeLight = Color(0xFFFDF3EE);
@@ -38,14 +32,14 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
   bool _motDePasseVisible = false;
   bool _confirmerMotDePasseVisible = false;
   bool _accepteConditions = false;
+  bool _inscriptionEnCours = false;
 
   File? _photoProfil;
   final ImagePicker _picker = ImagePicker();
 
   String? _citeSelectionnee;
   final List<String> _cites = [
-    for (int i = 0; i < 17; i++)
-      'Village ${String.fromCharCode(65 + i)}', // Village A à Village Q
+    for (int i = 0; i < 17; i++) 'Village ${String.fromCharCode(65 + i)}',
     'Hors campus',
   ];
 
@@ -58,6 +52,122 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
     _motDePasseController.dispose();
     _confirmerMotDePasseController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sInscrire() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_accepteConditions) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Merci d'accepter les conditions d'utilisation"),
+        ),
+      );
+      return;
+    }
+
+    if (_motDePasseController.text != _confirmerMotDePasseController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Les mots de passe ne correspondent pas")),
+      );
+      return;
+    }
+
+    if (_citeSelectionnee == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Merci de sélectionner votre village")),
+      );
+      return;
+    }
+
+    setState(() => _inscriptionEnCours = true);
+
+    try {
+      // 1. Création du compte Firebase Authentication
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _motDePasseController.text.trim(),
+          );
+
+      final User user = userCredential.user!;
+
+      // 2. Upload de la photo sur Cloudinary (si choisie)
+      String? urlPhoto;
+      if (_photoProfil != null) {
+        urlPhoto = await CloudinaryService.uploadImage(
+          _photoProfil!,
+          folder: 'profils_etudiants',
+        );
+      }
+
+      // 3. Sauvegarde dans Firestore
+      // ⚠️ Collection "users" (et non "utilisateurs") pour rester cohérent
+      // avec UserSession.chargerDepuisFirestore() qui lit cette collection.
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'prenom': _prenomController.text.trim(),
+        'nom': _nomController.text.trim(),
+        'email': _emailController.text.trim(),
+        'telephone': '+221${_telephoneController.text.trim()}',
+        'village': _citeSelectionnee,
+        'photoProfil': urlPhoto,
+        'role': 'etudiant',
+        'dateCreation': FieldValue.serverTimestamp(),
+      });
+
+      // 4. Remplit UserSession pour que le reste de l'app y ait accès
+      UserSession.uid = user.uid;
+      UserSession.role = 'etudiant';
+      UserSession.prenom = _prenomController.text.trim();
+      UserSession.nom = _nomController.text.trim();
+      UserSession.email = _emailController.text.trim();
+      UserSession.telephone = '+221${_telephoneController.text.trim()}';
+      UserSession.village = _citeSelectionnee!;
+      UserSession.photoProfil = urlPhoto;
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Compte créé avec succès !"),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ConnexionPage(profil: "etudiant"),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = "Erreur lors de l'inscription";
+
+      if (e.code == 'email-already-in-use') {
+        message = "Cette adresse email possède déjà un compte";
+      } else if (e.code == 'weak-password') {
+        message = "Le mot de passe est trop faible";
+      } else if (e.code == 'invalid-email') {
+        message = "Adresse email invalide";
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur : $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _inscriptionEnCours = false);
+      }
+    }
   }
 
   Future<void> _choisirPhoto() async {
@@ -100,61 +210,6 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
           ),
         );
       },
-    );
-  }
-
-  void _sInscrire() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (!_accepteConditions) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Merci d\'accepter les conditions d\'utilisation'),
-        ),
-      );
-      return;
-    }
-
-    if (_motDePasseController.text != _confirmerMotDePasseController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Les mots de passe ne correspondent pas')),
-      );
-      return;
-    }
-
-    if (_citeSelectionnee == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Merci de sélectionner votre village')),
-      );
-      return;
-    }
-
-    // Sauvegarde dans UserSession
-    UserSession.prenom = _prenomController.text.trim();
-    UserSession.nom = _nomController.text.trim();
-    UserSession.email = _emailController.text.trim();
-    UserSession.telephone = _telephoneController.text.trim();
-    UserSession.village = _citeSelectionnee!;
-    UserSession.motDePasse = _motDePasseController.text;
-
-    // Pour déboguer - affiche dans la console
-    print('=== INSCRIPTION RÉUSSIE ===');
-    print('Email: ${UserSession.email}');
-    print('Mot de passe: ${UserSession.motDePasse}');
-    print('============================');
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Compte créé avec succès !')));
-
-    // Redirige vers la page de connexion après inscription
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ConnexionPage(profil: _photoProfil?.path ?? ''),
-      ),
     );
   }
 
@@ -214,10 +269,8 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Requis';
                           final email = v.trim().toLowerCase();
-                          final domaineValide =
-                              email.endsWith('@ugb.edu.sn') ||
-                              email.endsWith('@gmail.com');
-                          if (!domaineValide) {
+                          if (!email.endsWith('@ugb.edu.sn') &&
+                              !email.endsWith('@gmail.com')) {
                             return 'Utilise une adresse @ugb.edu.sn ou @gmail.com';
                           }
                           return null;
@@ -503,19 +556,29 @@ class _InscriptionEtudiantState extends State<InscriptionEtudiant> {
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        onPressed: _sInscrire,
+        onPressed: _inscriptionEnCours ? null : _sInscrire,
         style: ElevatedButton.styleFrom(
           backgroundColor: kOrange,
+          disabledBackgroundColor: Colors.grey,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
         ),
-        child: const Text(
-          "S'inscrire",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        child: _inscriptionEnCours
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                "S'inscrire",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
       ),
     );
   }

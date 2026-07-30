@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:japale/inscription_livreur.dart';
+import 'package:japale/inscription_etudiant.dart';
+import 'package:japale/inscription_restaurant.dart';
 import 'package:japale/acceuil_client.dart';
+import 'package:japale/tableau_bord_restaurant.dart';
 import 'package:japale/widgets/japale_logo.dart';
 import 'package:japale/models/user_session.dart';
 
-
 class ConnexionPage extends StatefulWidget {
-  const ConnexionPage({super.key, required String profil});
+  const ConnexionPage({super.key, required this.profil});
+
+  final String profil;
 
   @override
   State<ConnexionPage> createState() => _ConnexionPageState();
@@ -15,6 +21,8 @@ class ConnexionPage extends StatefulWidget {
 
 class _ConnexionPageState extends State<ConnexionPage> {
   bool _obscurePassword = true;
+  bool _chargement = false;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -25,41 +33,110 @@ class _ConnexionPageState extends State<ConnexionPage> {
     super.dispose();
   }
 
-  void _seConnecter() {
-    // Récupérer les valeurs saisies
+  // ===============================
+  // CONNEXION FIREBASE
+  // ===============================
+
+  Future<void> _seConnecter() async {
     String emailSaisi = _emailController.text.trim();
-    String motDePasseSaisi = _passwordController.text;
+    String motDePasseSaisi = _passwordController.text.trim();
 
-    // Pour déboguer - affiche dans la console
-    print('=== TENTATIVE DE CONNEXION ===');
-    print('Email saisi: "$emailSaisi"');
-    print('Email stocké: "${UserSession.email}"');
-    print('Mot de passe saisi: "$motDePasseSaisi"');
-    print('Mot de passe stocké: "${UserSession.motDePasse}"');
-    print('================================');
-
-    // Comparer avec les données stockées dans UserSession
-    if (emailSaisi == UserSession.email && 
-        motDePasseSaisi == UserSession.motDePasse) {
-      
+    if (emailSaisi.isEmpty || motDePasseSaisi.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Connexion réussie !'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AccueilClient()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Email ou mot de passe incorrect"),
+          content: Text("Veuillez remplir tous les champs"),
           backgroundColor: Colors.red,
         ),
       );
+
+      return;
+    }
+
+    setState(() {
+      _chargement = true;
+    });
+
+    try {
+      // Connexion Firebase Auth
+      UserCredential resultat = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: emailSaisi,
+            password: motDePasseSaisi,
+          );
+
+      User? utilisateur = resultat.user;
+
+      if (utilisateur == null) {
+        throw Exception("Utilisateur introuvable");
+      }
+
+      // Chargement des informations Firestore
+      // Chargement des informations Firestore
+      await UserSession.chargerDepuisFirestore(
+        utilisateur.uid,
+        profil: widget.profil,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Connexion réussie !"),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Redirection selon le profil (étudiant / restaurant / livreur)
+      Widget pageDestination;
+
+      switch (widget.profil) {
+        case 'restaurant':
+          pageDestination = const TableauBordRestaurant();
+          break;
+        case 'etudiant':
+          pageDestination = const AccueilClient();
+          break;
+        default:
+          pageDestination = const AccueilClient();
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => pageDestination),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = "Erreur de connexion";
+
+      if (e.code == 'user-not-found') {
+        message = "Aucun compte trouvé avec cet email";
+      } else if (e.code == 'wrong-password') {
+        message = "Mot de passe incorrect";
+      } else if (e.code == 'invalid-email') {
+        message = "Adresse email invalide";
+      } else if (e.code == 'invalid-credential') {
+        message = "Email ou mot de passe incorrect";
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erreur : ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chargement = false;
+        });
+      }
     }
   }
 
@@ -67,37 +144,60 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6F0),
+
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF6B35),
         elevation: 0,
+
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
+
         title: const Text(
           'Connexion',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
       ),
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+
           child: Column(
             children: [
               _buildLogo(),
+
               const SizedBox(height: 32),
+
               _buildEmailField(),
+
               const SizedBox(height: 20),
+
               _buildPasswordField(),
+
               const SizedBox(height: 8),
+
               _buildForgotPassword(),
+
               const SizedBox(height: 24),
+
               _buildLoginButton(context),
+
               const SizedBox(height: 20),
+
               _buildDivider(),
+
               const SizedBox(height: 20),
+
               _buildGoogleButton(),
+
               const SizedBox(height: 60),
+
               _buildSignupPrompt(context),
             ],
           ),
@@ -109,23 +209,34 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget _buildEmailField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
-        const Text('Adresse email', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const Text(
+          'Adresse email',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+
         const SizedBox(height: 8),
+
         TextFormField(
-          controller: _emailController, // ✅ CONTROLLER AJOUTÉ
+          controller: _emailController,
+
           keyboardType: TextInputType.emailAddress,
+
           decoration: InputDecoration(
             hintText: 'etudiant@ugb.sn',
+
             hintStyle: TextStyle(color: Colors.grey.shade400),
+
             prefixIcon: const Icon(Icons.mail_outline),
+
             filled: true,
+
             fillColor: Colors.grey.shade100,
+
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
+
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
       ],
@@ -135,30 +246,44 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget _buildPasswordField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
-        const Text('Mot de passe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const Text(
+          'Mot de passe',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+
         const SizedBox(height: 8),
+
         TextFormField(
-          controller: _passwordController, // ✅ CONTROLLER AJOUTÉ
+          controller: _passwordController,
+
           obscureText: _obscurePassword,
+
           decoration: InputDecoration(
             hintText: '••••••••',
+
             prefixIcon: const Icon(Icons.lock_outline),
+
             suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+              icon: Icon(
+                _obscurePassword
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+              ),
+
               onPressed: () {
                 setState(() {
                   _obscurePassword = !_obscurePassword;
                 });
               },
             ),
+
             filled: true,
+
             fillColor: Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
+
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
       ],
@@ -168,13 +293,18 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget _buildForgotPassword() {
     return Align(
       alignment: Alignment.centerRight,
+
       child: GestureDetector(
-        onTap: () {
-          // TODO: navigation vers récupération mot de passe
-        },
+        onTap: () {},
+
         child: const Text(
           'Mot de passe oublié ?',
-          style: TextStyle(color: Color(0xFFB5401A), fontWeight: FontWeight.bold, fontSize: 13),
+
+          style: TextStyle(
+            color: Color(0xFFB5401A),
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
         ),
       ),
     );
@@ -183,17 +313,31 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget _buildLoginButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
+
       height: 54,
+
       child: ElevatedButton(
-        onPressed: _seConnecter,
+        onPressed: _chargement ? null : _seConnecter,
+
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B35),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
         ),
-        child: const Text(
-          'Se connecter',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+
+        child: _chargement
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text(
+                'Se connecter',
+
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }
@@ -202,10 +346,13 @@ class _ConnexionPageState extends State<ConnexionPage> {
     return Row(
       children: [
         Expanded(child: Divider(color: Colors.grey.shade300)),
+
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
+
           child: Text('ou', style: TextStyle(color: Colors.grey.shade600)),
         ),
+
         Expanded(child: Divider(color: Colors.grey.shade300)),
       ],
     );
@@ -214,19 +361,23 @@ class _ConnexionPageState extends State<ConnexionPage> {
   Widget _buildGoogleButton() {
     return SizedBox(
       width: double.infinity,
+
       height: 54,
+
       child: OutlinedButton.icon(
-        onPressed: () {
-          // TODO: authentification Google
-        },
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        ),
+        onPressed: () {},
+
         icon: const Icon(Icons.g_mobiledata, size: 28, color: Colors.red),
+
         label: const Text(
           'Continuer avec Google',
           style: TextStyle(color: Colors.black87, fontSize: 15),
+        ),
+
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
         ),
       ),
     );
@@ -237,19 +388,41 @@ class _ConnexionPageState extends State<ConnexionPage> {
       child: RichText(
         text: TextSpan(
           style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+
           children: [
             const TextSpan(text: 'Pas encore de compte ? '),
+
             TextSpan(
               text: "S'inscrire",
+
               style: const TextStyle(
                 color: Color(0xFFB5401A),
+
                 fontWeight: FontWeight.bold,
               ),
+
               recognizer: TapGestureRecognizer()
                 ..onTap = () {
+                  Widget pageInscription;
+
+                  switch (widget.profil) {
+                    case 'restaurant':
+                      pageInscription = const InscriptionRestaurant();
+                      break;
+                    case 'livreur':
+                      pageInscription = const InscriptionLivreur();
+                      break;
+                    case 'etudiant':
+                      pageInscription = const InscriptionEtudiant();
+                      break;
+                    default:
+                      pageInscription = const InscriptionEtudiant();
+                  }
+
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => InscriptionLivreur()),
+
+                    MaterialPageRoute(builder: (context) => pageInscription),
                   );
                 },
             ),
@@ -264,19 +437,35 @@ class _ConnexionPageState extends State<ConnexionPage> {
       children: [
         const JapaleLogo(
           size: 100,
+
           iconSize: 44,
+
           backgroundColor: Color(0xFFFFE4D6),
+
           iconColor: Color(0xFFFF6B35),
+
           isCircle: false,
         ),
+
         const SizedBox(height: 16),
+
         const Text(
           'Japale',
-          style: TextStyle(color: Color(0xFFFF6B35), fontSize: 24, fontWeight: FontWeight.bold),
+
+          style: TextStyle(
+            color: Color(0xFFFF6B35),
+
+            fontSize: 24,
+
+            fontWeight: FontWeight.bold,
+          ),
         ),
+
         const SizedBox(height: 6),
+
         Text(
           "L'entraide étudiante, un repas à la fois.",
+
           style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
       ],
