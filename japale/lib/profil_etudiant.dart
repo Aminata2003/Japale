@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:japale/acceuil_client.dart'; // adapte le chemin exact du fichier
+import 'package:japale/acceuil_client.dart';
+import 'package:japale/liste_restaurants.dart';
+import 'package:japale/suivi_commande.dart';
+import 'package:japale/alerte_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:japale/services/cloudinary_service.dart';
@@ -59,26 +62,22 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
           .doc(user.uid)
           .get();
 
+      if (!doc.exists) {
+        doc = await _firestore.collection('users').doc(user.uid).get();
+      }
+
       if (doc.exists) {
         setState(() {
           _userData = doc.data() as Map<String, dynamic>;
 
-          UserSession.prenom = _userData?['prenom'] ?? '';
-
-          UserSession.nom = _userData?['nom'] ?? '';
-
-          UserSession.email = _userData?['email'] ?? '';
-
-          UserSession.telephone = _userData?['telephone'] ?? '';
-
-          UserSession.village = _userData?['village'] ?? '';
+          UserSession.prenom = _userData?['prenom'] ?? UserSession.prenom ?? '';
+          UserSession.nom = _userData?['nom'] ?? UserSession.nom ?? '';
+          UserSession.email = _userData?['email'] ?? UserSession.email ?? '';
+          UserSession.telephone = _userData?['telephone'] ?? UserSession.telephone ?? '';
+          UserSession.village = _userData?['village'] ?? UserSession.village ?? '';
 
           if (_userData?['photoProfil'] != null) {
             UserSession.photoProfil = _userData!['photoProfil'];
-          }
-
-          if (UserSession.photoProfil != null) {
-            _photoProfil = File(UserSession.photoProfil!);
           }
         });
       }
@@ -456,13 +455,22 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
               );
               break;
             case 1:
-              // TODO page Restaurants
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ListeRestaurantsPage()),
+              );
               break;
             case 2:
-              // TODO page Commandes
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SuiviCommandePage()),
+              );
               break;
             case 3:
-              // TODO page Alertes
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const AlertePage()),
+              );
               break;
             case 4:
               setState(() => _currentNavIndex = index);
@@ -541,13 +549,30 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
     );
   }
 
+  ImageProvider? _getProfileImageProvider() {
+    if (_photoProfil != null) {
+      return FileImage(_photoProfil!);
+    }
+    final String? photoUrl = _userData?['photoProfil'] ?? UserSession.photoProfil;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      if (photoUrl.startsWith('http')) {
+        return NetworkImage(photoUrl);
+      } else if (photoUrl.startsWith('assets/')) {
+        return AssetImage(photoUrl);
+      }
+    }
+    return null;
+  }
+
   Widget _buildHeader(String nomComplet) {
+    final imageProvider = _getProfileImageProvider();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: kOrange,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(28),
           bottomRight: Radius.circular(28),
         ),
@@ -560,11 +585,10 @@ class _ProfilEtudiantState extends State<ProfilEtudiant> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: _photoProfil != null
-                      ? FileImage(_photoProfil!)
-                      : null,
-                  child: _photoProfil == null
-                      ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                  backgroundColor: kOrangeLight,
+                  backgroundImage: imageProvider,
+                  child: imageProvider == null
+                      ? const Icon(Icons.person, size: 50, color: kOrange)
                       : null,
                 ),
                 Positioned(
