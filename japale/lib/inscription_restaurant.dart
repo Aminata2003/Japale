@@ -257,8 +257,9 @@ class _InscriptionRestaurantState extends State<InscriptionRestaurant> {
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Requis';
-                          if (!v.contains('@') || !v.contains('.'))
+                          if (!v.contains('@') || !v.contains('.')) {
                             return 'Email invalide';
+                          }
                           return null;
                         },
                       ),
