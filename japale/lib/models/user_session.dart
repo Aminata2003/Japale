@@ -33,18 +33,23 @@ class UserSession {
 
   /// À appeler juste après une connexion réussie (Firebase Auth).
   /// [profil] doit être 'etudiant', 'restaurant' ou 'livreur'. S'il est
-  /// fourni, on cherche directement dans la bonne collection ; sinon on
-  /// essaie les trois dans l'ordre.
+  /// fourni, on cherche d'abord dans la collection du profil, puis dans les
+  /// autres (y compris 'users').
   static Future<void> chargerDepuisFirestore(
     String uidUtilisateur, {
     String? profil,
   }) async {
-    final collectionsAEssayer =
-        profil != null && _collectionParProfil.containsKey(profil)
-        ? [_collectionParProfil[profil]!]
-        : _collectionParProfil.values.toList();
+    final collectionsAEssayer = <String>[];
+    if (profil != null && _collectionParProfil.containsKey(profil)) {
+      collectionsAEssayer.add(_collectionParProfil[profil]!);
+    }
+    // On essaie 'users' et toutes les collections spécifiques
+    collectionsAEssayer.addAll(['users', 'etudiants', 'restaurants', 'livreurs']);
 
-    for (final nomCollection in collectionsAEssayer) {
+    // Déduplication conservant l'ordre
+    final listCollection = collectionsAEssayer.toSet().toList();
+
+    for (final nomCollection in listCollection) {
       final doc = await FirebaseFirestore.instance
           .collection(nomCollection)
           .doc(uidUtilisateur)
@@ -60,13 +65,12 @@ class UserSession {
         email = data['email'] as String?;
         telephone = data['telephone'] as String?;
 
-        if (nomCollection == 'restaurants') {
-          nomRestaurant = data['nomRestaurant'] as String?;
+        if (nomCollection == 'restaurants' || role == 'restaurant') {
+          nomRestaurant = (data['nomRestaurant'] ?? data['nom']) as String?;
           nomResponsable = data['nomResponsable'] as String?;
           adresse = data['adresse'] as String?;
-          photoProfil = data['photoUrl'] as String?;
+          photoProfil = (data['photoUrl'] ?? data['photoProfil']) as String?;
 
-          // Compat avec le code existant qui lit UserSession.prenom
           prenom = nomRestaurant;
           nom = '';
         } else {
@@ -84,9 +88,13 @@ class UserSession {
   }
 
   static String _roleDepuisCollection(String collection) {
-    return _collectionParProfil.entries
-        .firstWhere((e) => e.value == collection)
-        .key;
+    try {
+      return _collectionParProfil.entries
+          .firstWhere((e) => e.value == collection)
+          .key;
+    } catch (_) {
+      return 'etudiant';
+    }
   }
 
   static void clear() {

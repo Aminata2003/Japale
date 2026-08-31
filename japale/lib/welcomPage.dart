@@ -8,6 +8,7 @@ import 'widgets/japale_logo.dart';
 import 'package:japale/widgets/connexion.dart';
 import 'package:japale/acceuil_client.dart';
 import 'package:japale/profil_restaurant.dart';
+import 'package:japale/models/user_session.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -30,42 +31,34 @@ class _WelcomePageState extends State<WelcomePage> {
 
     if (user != null) {
       try {
-        DocumentSnapshot doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        await UserSession.chargerDepuisFirestore(user.uid);
+        String role = UserSession.role ?? 'etudiant';
 
-        if (doc.exists) {
-          String role = doc['role'] ?? 'etudiant';
+        if (!mounted) return;
 
-          if (!mounted) return;
+        switch (role) {
+          case 'restaurant':
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfilRestaurant()),
+            );
+            break;
 
-          switch (role) {
-            case 'restaurant':
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfilRestaurant()),
-              );
+          case 'etudiant':
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AccueilClient()),
+            );
+            break;
 
-              break;
-
-            case 'etudiant':
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const AccueilClient()),
-              );
-
-              break;
-
-            default:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const ChoixProfilPage()),
-              );
-          }
-
-          return;
+          default:
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ChoixProfilPage()),
+            );
         }
+
+        return;
       } catch (e) {
         debugPrint("Erreur récupération profil Firebase : $e");
       }

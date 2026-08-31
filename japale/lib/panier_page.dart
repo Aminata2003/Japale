@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:japale/models/user_session.dart';
+import 'confirmation_commande.dart';
 
 const Color kOrangePanier = Color(0xFFFF6B35);
 
@@ -52,14 +54,79 @@ class _PanierPageState extends State<PanierPage> {
   final String _adresseLivraison =
       'Cité universitaire Bloc B, Chambre 214, Campus Sanar';
 
+  int _calculerFraisLivraison(String village) {
+    if (village.toLowerCase().contains('hors') || village.toLowerCase().contains('hors campus')) {
+      return 500;
+    }
+    return 200;
+  }
+
+  late int _fraisLivraisonActuels;
+  late String _villageActuel;
+
+  final List<String> _cites = [
+    for (int i = 0; i < 17; i++) 'Village ${String.fromCharCode(65 + i)}',
+    'Hors campus',
+  ];
+
+  void _choisirVillageLivraison() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Choisir le lieu de livraison',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _cites.length,
+                    itemBuilder: (context, index) {
+                      final village = _cites[index];
+                      final bool estSelectionne = village == _villageActuel;
+                      final int frais = _calculerFraisLivraison(village);
+                      return ListTile(
+                        title: Text(village),
+                        subtitle: Text(
+                          frais == 200 ? 'Livraison Campus • 200 FCFA' : 'Livraison Hors Campus • 500 FCFA',
+                        ),
+                        trailing: estSelectionne
+                            ? const Icon(Icons.check_circle, color: kOrangePanier)
+                            : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _villageActuel = village;
+                            _fraisLivraisonActuels = frais;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-
-    // Copie de la liste pour éviter de modifier directement
-    // la liste envoyée depuis la page précédente
-
     _items = List<CartItem>.from(widget.items);
+    _villageActuel = UserSession.village ?? 'Village A';
+    _fraisLivraisonActuels = _calculerFraisLivraison(_villageActuel);
   }
 
   int get _sousTotal {
@@ -67,7 +134,7 @@ class _PanierPageState extends State<PanierPage> {
   }
 
   int get _total {
-    return _sousTotal + widget.fraisLivraison;
+    return _sousTotal + _fraisLivraisonActuels;
   }
 
   Future<void> _confirmerCommande() async {
@@ -90,19 +157,11 @@ class _PanierPageState extends State<PanierPage> {
         throw Exception('Utilisateur non connecté');
       }
 
-      await FirebaseFirestore.instance.collection('commandes').add({
-        // étudiant connecté
+      final docRef = await FirebaseFirestore.instance.collection('commandes').add({
         'clientId': user.uid,
-
-        // temporaire, on pourra récupérer le vrai nom depuis users
-        'clientNom': user.displayName ?? 'Étudiant',
-
-        // restaurant concerné
+        'clientNom': '${UserSession.prenom ?? "Étudiant"} ${UserSession.nom ?? ""}'.trim(),
         'restaurantId': widget.restaurantName,
-
         'restaurantName': widget.restaurantName,
-
-        // plats commandés
         'plats': _items.map((item) {
           return {
             'nom': item.name,
@@ -110,34 +169,30 @@ class _PanierPageState extends State<PanierPage> {
             'quantite': item.quantity,
           };
         }).toList(),
-
         'sousTotal': _sousTotal,
-
-        'fraisLivraison': widget.fraisLivraison,
-
+        'fraisLivraison': _fraisLivraisonActuels,
         'total': _total,
-
         'paiement': _modePaiement,
-
-        'adresseLivraison': _adresseLivraison,
-
-        // même valeur que la page restaurant attend
+        'adresseLivraison': _villageActuel,
         'statut': 'En attente',
-
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Commande envoyée avec succès'),
-
-          backgroundColor: Colors.green,
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConfirmationCommandePage(
+            commandeId: docRef.id,
+            restaurantName: widget.restaurantName,
+            total: _total,
+            items: _items,
+            adresse: _villageActuel,
+            fraisLivraison: _fraisLivraisonActuels,
+          ),
         ),
       );
-
-      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
 
@@ -415,7 +470,10 @@ class _PanierPageState extends State<PanierPage> {
 
         const SizedBox(height: 8),
 
-        _buildPriceLine('Frais de livraison', widget.fraisLivraison),
+        _buildPriceLine(
+          'Frais de livraison (${_fraisLivraisonActuels == 200 ? "Campus UGB" : "Hors campus"})',
+          _fraisLivraisonActuels,
+        ),
 
         const SizedBox(height: 12),
 
@@ -519,42 +577,30 @@ class _PanierPageState extends State<PanierPage> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
-                    const Text(
-                      'Cité universitaire Bloc B',
-
-                      style: TextStyle(
+                    Text(
+                      _villageActuel,
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
-
                         fontSize: 14,
                       ),
                     ),
-
-                    const Text(
-                      'Chambre 214, Campus Sanar',
-
-                      style: TextStyle(color: Colors.black54, fontSize: 13),
+                    Text(
+                      _fraisLivraisonActuels == 200
+                          ? 'Livraison Campus UGB • 200 FCFA'
+                          : 'Livraison Hors Campus • 500 FCFA',
+                      style: const TextStyle(color: Colors.black54, fontSize: 13),
                     ),
                   ],
                 ),
               ),
 
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Modification adresse bientôt disponible'),
-                    ),
-                  );
-                },
-
+                onTap: _choisirVillageLivraison,
                 child: const Text(
                   'Modifier',
-
                   style: TextStyle(
                     color: kOrangePanier,
-
                     fontWeight: FontWeight.bold,
                   ),
                 ),
