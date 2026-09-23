@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "431113849971",
+    "project_id": "japale-dace9",
+    "storage_bucket": "japale-dace9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:431113849971:android:e1460d281b1d0eed4f6e06",
+        "android_client_info": {
+          "package_name": "com.example.japale"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAORFm-t0ek6KR41DiMuY5MvM_6BrFdH2g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
