@@ -49,40 +49,37 @@ class DefaultFirebaseOptions {
     storageBucket: 'japale-dace9.firebasestorage.app',
     measurementId: 'G-PZ7XE5EYQS',
   );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAORFm-t0ek6KR41DiMuY5MvM_6BrFdH2g',
-    appId: '1:431113849971:android:e1460d281b1d0eed4f6e06',
-    messagingSenderId: '431113849971',
-    projectId: 'japale-dace9',
-    storageBucket: 'japale-dace9.firebasestorage.app',
+    apiKey: 'AIzaSyCCILjb4FVUFHm4m8wrMG1lUwHbjg0OM5U',
+    appId: '1:497423748932:android:9a717ee77cf9aa42365111',
+    messagingSenderId: '497423748932',
+    projectId: 'japale-dace9-cc3dd',
+    storageBucket: 'japale-dace9-cc3dd.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBAaYW0IOvthZYhou55eLSHVo62hsYCtZM',
-    appId: '1:431113849971:ios:537659af54fdb01e4f6e06',
-    messagingSenderId: '431113849971',
-    projectId: 'japale-dace9',
-    storageBucket: 'japale-dace9.firebasestorage.app',
+    apiKey: 'AIzaSyBEluwQ5DzVeCJOAbeEPBCYyFekiPq3woM',
+    appId: '1:497423748932:ios:4c7cf069f9b54632365111',
+    messagingSenderId: '497423748932',
+    projectId: 'japale-dace9-cc3dd',
+    storageBucket: 'japale-dace9-cc3dd.firebasestorage.app',
     iosBundleId: 'com.example.japale',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBAaYW0IOvthZYhou55eLSHVo62hsYCtZM',
-    appId: '1:431113849971:ios:537659af54fdb01e4f6e06',
-    messagingSenderId: '431113849971',
-    projectId: 'japale-dace9',
-    storageBucket: 'japale-dace9.firebasestorage.app',
+    apiKey: 'AIzaSyBEluwQ5DzVeCJOAbeEPBCYyFekiPq3woM',
+    appId: '1:497423748932:ios:4c7cf069f9b54632365111',
+    messagingSenderId: '497423748932',
+    projectId: 'japale-dace9-cc3dd',
+    storageBucket: 'japale-dace9-cc3dd.firebasestorage.app',
     iosBundleId: 'com.example.japale',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyA7Hts8EXUC3W1VlLfac7HJGXXDxHQ1xss',
-    appId: '1:431113849971:web:f3544d0969ab2cec4f6e06',
-    messagingSenderId: '431113849971',
-    projectId: 'japale-dace9',
-    authDomain: 'japale-dace9.firebaseapp.com',
-    storageBucket: 'japale-dace9.firebasestorage.app',
-    measurementId: 'G-5WW4T39J89',
+    apiKey: 'AIzaSyAawn-utW9ui3W4z2K2k4W5TjsLz9Z76Jo',
+    appId: '1:497423748932:web:d9841dca59e6191d365111',
+    messagingSenderId: '497423748932',
+    projectId: 'japale-dace9-cc3dd',
+    authDomain: 'japale-dace9-cc3dd.firebaseapp.com',
+    storageBucket: 'japale-dace9-cc3dd.firebasestorage.app',
+    measurementId: 'G-SCDB71VQTG',
   );
 }

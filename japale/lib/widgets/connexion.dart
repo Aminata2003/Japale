@@ -10,6 +10,8 @@ import 'package:japale/tableau_bord_restaurant.dart';
 import 'package:japale/widgets/japale_logo.dart';
 import 'package:japale/models/user_session.dart';
 
+import 'package:japale/accueil_livreur.dart';
+
 class ConnexionPage extends StatefulWidget {
   const ConnexionPage({super.key, required this.profil});
 
@@ -89,13 +91,14 @@ class _ConnexionPageState extends State<ConnexionPage> {
       // Redirection selon le profil (étudiant / restaurant / livreur)
       Widget pageDestination;
 
-      switch (widget.profil) {
+      switch (UserSession.role) {
         case 'restaurant':
           pageDestination = const TableauBordRestaurant();
           break;
-        case 'etudiant':
-          pageDestination = const AccueilClient();
+        case 'livreur':
+          pageDestination = const AccueilLivreur();
           break;
+        case 'etudiant':
         default:
           pageDestination = const AccueilClient();
       }

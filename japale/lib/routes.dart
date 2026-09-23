@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/material.dart';
 
 import 'package:japale/choix_profil.dart'; // adapte le nom du fichier si besoin
 import 'package:japale/widgets/connexion.dart';
@@ -15,6 +14,10 @@ import 'package:japale/alerte_page.dart';
 import 'package:japale/profil_etudiant.dart';
 import 'package:japale/profil_restaurant.dart';
 import 'package:japale/publication_menu.dart';
+import 'package:japale/accueil_livreur.dart';
+import 'package:japale/mes_commandes.dart';
+import 'package:japale/profil_livreur.dart';
+import 'package:japale/historique_gains.dart';
 
 class AppRoutes {
   static const String choixProfil = '/choix-profil';
@@ -35,6 +38,10 @@ class AppRoutes {
   static const String publicationMenu = '/publication-menu';
   static const String profilRestaurant = '/profil-restaurant';
   static const String welcome = '/';
+   // ===== ROUTES LIVREUR =====
+  static const String mesCommandes = '/mes-commandes';
+  static const String historiqueGains = '/historique-gains';
+  // ==========================
 
   static Map<String, WidgetBuilder> get routes {
     return {
@@ -50,6 +57,13 @@ class AppRoutes {
       profilEtudiant: (context) => const ProfilEtudiant(),
       profilRestaurant: (context) => const ProfilRestaurant(),
       publicationMenu: (context) => const PublicationMenu(),
+      // ===== ROUTES LIVREUR =====
+      dashboardLivreur: (context) => const AccueilLivreur(),
+      mesCommandes: (context) => const MesCommandes(),
+      profilLivreur: (context) => const ProfilLivreur(),
+      historiqueGains: (context) => const HistoriqueGains(),
+      // ==========================
+
     };
   }
 }

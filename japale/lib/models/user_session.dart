@@ -18,6 +18,14 @@ class UserSession {
   static String? nomResponsable;
   static String? adresse;
 
+   // ===== CHAMPS SPÉCIFIQUES LIVREUR =====
+  static String? disponibilite; // 'Matin', 'Après-midi', 'Soir'
+  static bool? certifie;
+  static double? note;
+  static int? nbLivraisons;
+  static int? gains;
+  // =====================================
+
   @Deprecated(
     'Le mot de passe est géré par Firebase Auth, ne pas le stocker ici',
   )
@@ -65,6 +73,19 @@ class UserSession {
         email = data['email'] as String?;
         telephone = data['telephone'] as String?;
 
+         // ===== CHARGEMENT DES DONNÉES LIVREUR =====
+        if (nomCollection == 'livreurs' || role == 'livreur') {
+          prenom = data['prenom'] as String? ?? data['nom'] as String?;
+          nom = data['nom'] as String?;
+          photoProfil = data['photoProfil'] as String?;
+          disponibilite = data['disponibilite'] as String? ?? 'Matin';
+          certifie = data['certifie'] ?? false;
+          note = (data['note'] ?? 0.0).toDouble();
+          nbLivraisons = data['nbLivraisons'] ?? 0;
+          gains = data['gains'] ?? 0;
+        }
+        // ========================================
+
         if (nomCollection == 'restaurants' || role == 'restaurant') {
           nomRestaurant = (data['nomRestaurant'] ?? data['nom']) as String?;
           nomResponsable = data['nomResponsable'] as String?;
@@ -109,5 +130,23 @@ class UserSession {
     nomRestaurant = null;
     nomResponsable = null;
     adresse = null;
+    // ===== RÉINITIALISATION DES CHAMPS LIVREUR =====
+    disponibilite = null;
+    certifie = null;
+    note = null;
+    nbLivraisons = null;
+    gains = null;
+    // =============================================
   }
+   // ===== GETTERS PRATIQUES POUR LE LIVREUR =====
+  static String get nomComplet => '$prenom $nom'.trim();
+
+  static String get gainsFormate => '$gains FCFA';
+
+  static String get noteFormate => note?.toStringAsFixed(1) ?? '0.0';
+
+  static bool get estCertifie => certifie ?? false;
+
+  static String get disponibiliteTexte => disponibilite ?? 'Non défini';
+  // =============================================
 }

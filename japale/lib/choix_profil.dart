@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'inscription_etudiant.dart';
 import 'inscription_livreur.dart';
 import 'inscription_restaurant.dart';
+import 'widgets/connexion.dart';
 
 
 class ChoixProfilPage extends StatelessWidget {
@@ -349,7 +350,12 @@ class ChoixProfilPage extends StatelessWidget {
 
                     onPressed: () {
 
-                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ConnexionPage(profil: ''),
+                        ),
+                      );
 
                     },
 

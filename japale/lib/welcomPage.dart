@@ -127,12 +127,11 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
 
             SafeArea(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-
                 child: Column(
                   children: [
-                    const Spacer(flex: 3),
+                    const SizedBox(height: 40),
 
                     const JapaleLogo(),
 
@@ -162,7 +161,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       style: TextStyle(color: Colors.white, fontSize: 16),
                     ),
 
-                    const Spacer(flex: 4),
+                    const SizedBox(height: 40),
 
                     Container(
                       width: double.infinity,
